@@ -14,11 +14,12 @@ import csv
 
 def check_traj(filename):
     try:
-        atoms = read(filename)
+        atoms = read(filename)        
+        print 'traj file OK!'
     except:
+        print 'Converting to new ase format!'
         convert(filename)
     return
-
 
 def get_reference(filename):
     atoms = read(filename)
@@ -320,8 +321,8 @@ def write_ase(filename, db_file, **key_value_pairs):
 def get_reaction_from_folder(folder_name):
     reaction = {}
     if '__' in folder_name:  # Complicated reaction
-        reaction.update({'reactants': reaction.split('__')[0].split('_')},
-                        {'products': reaction.split('__')[1].split('_')})
+        reaction.update({'reactants': folder_name.split('__')[0].split('_'),
+                        'products': folder_name.split('__')[1].split('_')})
 
     else:  # Standard format
         AB, A, B = folder_name.split('_')
