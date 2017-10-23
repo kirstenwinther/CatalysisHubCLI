@@ -13,7 +13,7 @@ catbase = os.environ['data'] + 'winther/'
 ase_db = catbase + 'atoms.db'
 
 user = argv[1]
-data_home = os.environ['data']
+data_home = os.environ['data'] + '/'
 
 base = data_home + user
 base_level = len(base.split("/"))
