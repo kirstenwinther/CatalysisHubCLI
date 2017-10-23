@@ -3,259 +3,246 @@ import csv
 import sqlite3
 from sys import argv
 from ase_tools import *
-from catappsqlite import CatappSqlite
+from catappsqlite import CatappSQLite
 import glob
 from ase.io.trajectory import convert
 import ase
 from ase import db
 
-catbase = './'
-ase_db = None
+catbase = os.environ['data'] + 'winther/'
+ase_db = catbase + 'atoms.db'
+
 user = argv[1]
-data_home = os.environ['data'] + 'winther/'
+data_home = os.environ['data']
+
 base = data_home + user
-base_level =  len(base.split("/"))
-publications = os.listdir(base)
+base_level = len(base.split("/"))
 
 maxdepth = 0
 i = 0
 up = 0
 
-
 for root, dirs, files in os.walk(base):
-    cur_level = len(root.split("/")) - base_level
-    if cur_level == 1 + up:
-        #assert 'publication.txt' in files
+    level = len(root.split("/")) - base_level
+    if level == 1:
+        # assert 'publication.txt' in files
         try:
             pub_data = json.load(open(root + '/publication.txt', 'r'))
 
             keys = ['journal', 'volume', 'number', 'pages', 'year']
-            ref_keys = [pub_data[key] for key in keys]
             reference = json.dumps(pub_data)
-            #reference = '{} {}, {}, {} ({})'.format(*ref_keys)
             try:
-                url = pub_data_url
+                doi = pub_data['doi']
             except:
-                url = ''
+                doi = None
             year = pub_data['year']
-            print reference
         except:
-            print 
             year = 2017
-            url = ''
+            doi = None
             reference = '{}({})'.format(user, year)
-            
-    if cur_level == 2 + up:
+        publication_keys = {}
+        for key, value in pub_data.iteritems():
+            if isinstance(value, list):
+                value = json.dumps(value)
+            else:
+                try:
+                    value = int(value)
+                except:
+                    pass
+            publication_keys.update({'publication_' + key: value})
+    if level == 2:
         DFT_code = root.split('/')[-1]
-        
-    if cur_level == 3 + up:
+
+    if level == 3:
         DFT_functional = root.split('/')[-1]
-    if cur_level == 4 + up:
-        reaction = root.split('/')[-1]
-        if '__' in reaction:  # Complicated reaction
-            reactants = reaction.split('__')[0].split('_')
-            products = reaction.split('__')[1].split('_')
-            reaction = reactants.append(products)
-            print reactants, products, reaction
-        else:  # Standard format
-            reaction = reaction.split('_')
-            print reaction
-            AB, A, B = reaction
-            reactants = [AB]
-            products = [A, B]
 
-        adsorbed = ['star' in s and s != 'star' for s in reaction]
-        gas = ['gas' in s and s != 'gas' for s in reaction]
+    if level == 4:
+        folder_name = root.split('/')[-1]
 
-        reactant_atoms = [clear_state(s) for s in reactants]
-        product_atoms = [clear_state(s) for s in products]
-        reactant_states = [get_state(s) for s in reactants]
-        product_states = [get_state(s) for s in products]
-        #reaction_atoms = [s.replace('star', '').replace('gas', '') for s in reaction]
-        #reaction_states = [get_state(s) for s in reaction]
-        #reaction = [s.replace('star', '*').replace('gas', '(g)') for s in reaction]
-        #print reaction
+        reaction = get_reaction_from_folder(folder_name)  # reaction dict
 
-        mol_ref = [f for f in files if f.endswith('.traj')]
-        chemical_compositions_mol = np.array([])
-        gasreactant_i = [i for i in range(len(reactants)) if reactant_states[i] == 'gas']
-        gasproduct_i = [i for i in range(len(products)) if product_states[i] == 'gas']
-                                              
-        #energy_references = {}
-        reference_ids = {}
-        for f in mol_ref:
-            traj = '{}/{}'.format(root, mol_ref[0])
+        reaction_atoms, prefactors, states = get_reaction_atoms(reaction)
+
+        gas_i = {}
+        for key, mollist in reaction.iteritems():
+            gas_i[key] = [i for i in range(len(mollist)) if states[key][i] == 'gas']
+
+
+
+        traj_files = {'reactants': ['' for n in range(len(reaction['reactants']))],
+                      'products': ['' for n in range(len(reaction['products']))]}
+
+        chemical_compositions = {'reactants': ['' for n in range(len(reaction['reactants']))],
+                      'products': ['' for n in range(len(reaction['products']))]}
+        traj_gas = [f for f in files if f.endswith('.traj')]
+
+
+        ase_ids = {}
+        reference_ase_ids = {}
+        #reference_ids = {}
+        
+        for f in traj_gas:
+            ase_id = None
+            found = False
+            traj = '{}/{}'.format(root, f)
             check_traj(traj)
-            ase_id = check_in_ase(traj)
-            chemical_composition = get_chemical_formula(traj, mode='hill')
-            chemical_compositions_mol = \
-            np.append(chemical_compositions_mol, 
-                      chemical_composition)
-            reference_ids.update({chemical_composition: ase_id})
-            #energy_references.update(get_reference(traj))
-            
-             #_id = db_ase.write(read(traj))
-            #ase_id_ref.append(_id)
+            chemical_composition = ''.join(sorted(get_chemical_formula(traj, mode='all')))
+            chemical_composition_hill = get_chemical_formula(traj, mode='hill')
 
-        traj_reactants_mol = []
-        traj_products_mol = []
-        for n in gasreactant_i:
-            m = [m for m in range(len(mol_ref)) if \
-                 reactant_atoms[n] == chemical_compositions_mol[m]]
-            print m
-            assert len(m) == 1
-            m = m[0]
-            mol_ref_m = '{}/{}'.format(root, mol_ref[m])
-            traj_reactants_mol.append(mol_ref_m)
+            ase_id = check_in_ase(traj, ase_db)
+            if ase_id is None:  # write to ASE db
+                energy = get_energies([traj])
+                key_value_pairs = publication_keys.copy()
+                key_value_pairs.update({"name": chemical_composition_hill,
+                                        'epot': energy})
+                ase_id = write_ase(traj, ase_db, **key_value_pairs)
 
+            for key, mollist in reaction_atoms.iteritems():
+                for i, molecule in enumerate(mollist):
+                    if molecule == chemical_composition:
+                        assert found is False  # Should only be found once?
+                        found = True
+                        traj_files[key][i] = traj
+                        chemical_compositions[key][i] = chemical_composition_hill
+                        ase_ids.update({clear_prefactor(reaction[key][i]): ase_id})
+                        #energy_references.update(get_reference(traj))
 
-        for n in gasproduct_i:
-            print product_atoms[n]
-            m = [m for m in range(len(mol_ref)) if \
-                 product_atoms[n] == chemical_compositions_mol[m]]
-            print m
-            assert len(m) == 1
-
-            m = m[0]
-            mol_ref_m = '{}/{}'.format(root, mol_ref[m])
-            traj_products_mol.append(mol_ref_m)
-
-    if cur_level == 5:
+            if found is False:
+                print '{} file is not part of reaction, include as reference'.format(f)
+                ase_ids.update({chemical_composition_hill + 'gas': ase_id})
+                
+    if level == 5:
         up = 0
-    if cur_level == 5 + up:
+
+    if level == 5 + up:
         metal = root.split('/')[-1]
-        if metal == reaction[0].replace('*', ''): # roling
-            up += 1
+        if user == 'roling':
+            if metal == reaction[0].replace('*', ''):
+                up += 1
+
         if len(metal.split('_')) > 1:
             metal = metal.split('_')[0]
             facet = metal.split('_')[1]
             up -= 1
             
-    if cur_level == 6 + up:
+    if level == 6 + up:
         facet = root.split('/')[-1]
-        
-    if cur_level > 6 + up:
-        info = '_'.join(info for info in root.split('/')[6 + up + base_level:])
+        if not 'x' in facet:
+            facet = '{}x{}x{}'.format(facet[0], facet[1], facet[2])
 
-    no_of_atoms = 0
-    traj_files = [f for f in files if f.endswith('.traj') and 'gas' not in f]
-    reactant_ids = {}
-    product_ids = {}
-    if len(traj_files) > 0 and cur_level >= 6 + up:
-        
-        assert len(traj_files) > 1, 'Need at least two files!'
-        energies = np.array([])
-        chemical_compositions = np.array([])
+        sites = ''
+    if level > 6 + up:
+         sites = '_'.join(info for info in root.split('/')[6 + up + base_level:])
+
+    traj_slabs = [f for f in files if f.endswith('.traj') and 'gas' not in f]
+
+    if len(traj_slabs) > 0 and level >= 6 + up:
+        assert len(traj_slabs) > 1, 'Need at least two files!'
         n_atoms = np.array([])
         empty_i = None
         ts_i = None
-        for i, f in enumerate(traj_files):
+        chemical_composition_slabs = []
+        for i, f in enumerate(traj_slabs):
             if 'empty' in f:
                 empty_i = i
             if 'TS' in f:
                 ts_i = i
+
             traj = '{}/{}'.format(root, f)
             check_traj(traj)
-            chemical_compositions = np.append(chemical_compositions, get_chemical_formula(traj, mode='all'))
-            energies = np.append(energies, get_energy([traj]))
+            chemical_composition_slabs = np.append(chemical_composition_slabs, get_chemical_formula(traj, mode='all'))
             n_atoms = np.append(n_atoms,get_number_of_atoms(traj))
             
         # Empty slab has least atoms
         if empty_i is None:
             empty_i = np.argmin(n_atoms)
-        traj_empty = root + '/' + traj_files[empty_i]
-        ase_id = check_in_ase(traj_empty)
-        reference_ids.update({get_chemical_formula(traj_empty): ase_id})
+        traj_empty = root + '/' + traj_slabs[empty_i]
 
+
+        # Identify TS
         if ts_i is not None:
-            traj_TS = root + '/' + traj_files[ts_i]
-            ase_id = check_in_ase(traj_TS)
+            traj_TS = root + '/' + traj_slabs[ts_i]
             TS_id = {get_chemical_formula(traj_TS): ase_id}
             
-        elif ts_i is None and len(traj_files) > len(reaction) + 1:
+        elif ts_i is None and len(traj_slabs) > len(reaction) + 1:
             raise AssertionError, 'which one is the transition state???'
         else:
             TS_id = None
             activation_energy = None
+
+        for i, f in enumerate(traj_slabs):
+            ase_id = None
+            found = False
+            res = chemical_composition_slabs[i]
+            res = ''.join(sorted(res.replace(chemical_composition_slabs[empty_i], '', 1)))
+            traj = '{}/{}'.format(root, f)
+            chemical_composition_metal = get_chemical_formula(traj)
+
+            ase_id = check_in_ase(traj, ase_db)
+            if ase_id is None:
+                key_value_pairs = publication_keys.copy()
+                key_value_pairs.update({'name': get_chemical_formula(traj_empty),
+                                        'species': '',
+                                        'epot': get_energies([traj_empty]),
+                                        'site': sites,
+                                        'facet': facet,
+                                        'layers': get_n_layers(traj_empty)})
+                ase_id = write_ase(traj, ase_db, **key_value_pairs)
+
             
+            if i == ts_i:
+                found = True
+                ase_ids.update({'TS': ase_id})
+                continue
+            elif i == empty_i:
+                found = True
+                ase_ids.update({'star': ase_id})
+
+            for key, mollist in reaction_atoms.iteritems():
+                for n, molecule in enumerate(mollist):
+                    if res == molecule and states[key][n] == 'star':
+                        found = True
+                        traj_files[key][n] = traj
+                        chemical_compositions[key][n] = chemical_composition_metal
+                        ase_ids.update({clear_prefactor(reaction[key][n]): ase_id})
+
+            if found is False:
+                print '{} file is not part of reaction, include as reference'.format(f)
+                ase_ids.update({chemical_composition_metal: ase_id})
+
+                
+
         ## Transition state has higher energy
         #if len(np.unique(chemical_compositions)) > len(chemical_compositions):
         #    for chemical_composition in chemical_compositions:
-        traj_reactants = traj_reactants_mol[:]
-        traj_products = traj_products_mol[:]
-        
-        for n, res in enumerate(chemical_compositions):
-            res = res.replace(chemical_compositions[empty_i], '', 1)
-            traj = '{}/{}'.format(root, traj_files[n])
-            for i, atoms in enumerate(reactant_atoms):
-                if res == atoms and reactant_states[i] == 'star':
-                    traj_reactants.append(traj)
-                    ase_id = check_in_ase(traj)
-                    reactant_ids.update({get_chemical_formula(traj): ase_id})
-            for i, atoms in enumerate(product_atoms):
-                if res == atoms and product_states[i] == 'star':
-                    traj_products.append(traj)
-                    ase_id = check_in_ase(traj)
-                    product_ids.update({get_chemical_formula(traj): ase_id})
 
         surface_composition = get_surface_composition(traj_empty)
         bulk_composition = get_bulk_composition(traj_empty)
         chemical_composition = get_chemical_formula(traj_empty)
-
-        print traj_reactants, traj_reactants_mol
         
-        reaction_energy = get_reaction_energy(traj_reactants, traj_products)
+        reaction_energy = get_reaction_energy(traj_files, prefactors)
         
-        print reaction_energy
-        sites = None
+        print reaction, reaction_energy
 
-        key_value_pairs = {'chemical_composition': chemical_composition,
-                           'surface_composition': surface_composition,
-                           'facet': facet,
-                           'sites': sites,
-                           'reactants': reactants,
-                           'products': products,
-                           'reaction_energy': reaction_energy,
-                           'activation_energy': activation_energy,
-                           'DFT_code': DFT_code,
-                           'DFT_functional': DFT_functional,
-                           'reference':reference,
-                           'url': url,
-                           'year': year,
-                           'reactant_ids': reactant_ids,
-                           'TS_id': TS_id,
-                           'product_ids': product_ids,
-                           'reference_ids': reference_ids
-        }
+        key_value_pairs_catapp = {'chemical_composition': chemical_composition,
+                                  'surface_composition': surface_composition,
+                                  'facet': facet,
+                                  'sites': sites,
+                                  'reactants': reaction['reactants'],
+                                  'products': reaction['products'],
+                                  'reaction_energy': reaction_energy,
+                                  'activation_energy': activation_energy,
+                                  #'gas_references:': energy_references,
+                                  'DFT_code': DFT_code,
+                                  'DFT_functional': DFT_functional,
+                                  'reference': reference,
+                                  'doi': doi,
+                                  'year': year,
+                                  'ase_ids': ase_ids,
+                              }
         
 
-        with CatappSqlite(catbase + 'catapp.db') as db:
-            id = db.write(key_value_pairs)
-            print id
+        with CatappSQLite(catbase + 'catapp.db') as db:
+            id = db.write(key_value_pairs_catapp)
+            print 'Writing to catapp db row id = {}'.format(id)
 
-
-        
-
-
-        
-
-        #print chemical_composition, facet, AB, A, B, reaction_energy, DFT_code, DFT_functional, url, year
-        #if AB.strip('*') in chemical_composition:
-        #    print AB, chemical_composition
-        #    traj_AB = traj
-#       #     i += 1
-        #else:
-        #    traj_empty = traj
-
-      #  i +=1
-      #  print i, chemical_composition
-
-        # assert metal in chemical_composition
-        # for mol in reaction if mol != '':
-
-        #, facet, AB, A, B, reaction_energy, energy_references, DFT_code, DFT_functional, reference, url, year
-
-
-        #DFT_functional, DFT_code, reaction, metal, facet, info, chemical_composition
-
-        
