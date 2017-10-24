@@ -324,7 +324,7 @@ def get_reaction_from_folder(folder_name):
         reaction.update({'reactants': folder_name.split('__')[0].split('_'),
                         'products': folder_name.split('__')[1].split('_')})
 
-    else:  # Standard format
+    elif '_' in folder_name:  # Standard format
         AB, A, B = folder_name.split('_')
         if '-' in A:
             A = A.split('-')
@@ -334,7 +334,8 @@ def get_reaction_from_folder(folder_name):
             products = [A, B]
         reaction.update({'reactants': [AB],
                          'products': products})
-    
+    else:
+        raise AssertionError, 'problem with folder {}'.format(foldername) 
     return reaction
 
 def get_reaction_atoms(reaction):

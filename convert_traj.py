@@ -2,18 +2,18 @@ import os
 from sys import path, argv
 from distutils.version import StrictVersion
 import ase
-from ase_tools import check_traj
 
 assert StrictVersion(ase.__version__) >= StrictVersion('3.10.0')
 try:  # sherlock 1 or 2
     sherlock = os.environ['SHERLOCK']
     if sherlock == '1':
-        catbase = '/home/winther/data_catapp/winther/catapp_scripts'
+        catbase = '/home/winther/data_catapp/winther/scripts'
     elif sherlock == '2':
-        catbase = '/home/users/winther/data_catapp/winther/catapp_scripts'
+        catbase = '/home/users/winther/data_catapp/winther/scripts'
 except:  # SUNCAT
-    catbase = '/nfs/slac/g/suncatfs/data_catapp/winther/catapp_scripts'
+    catbase = '/nfs/slac/g/suncatfs/data_catapp/winther/scripts'
 path.append(catbase)
+from ase_tools import check_traj
 
 try:
     base = argv[1]

@@ -26,6 +26,7 @@ for root, dirs, files in os.walk(base):
     level = len(root.split("/")) - base_level
     if level == 1:
         # assert 'publication.txt' in files
+        publication_keys = {}
         try:
             pub_data = json.load(open(root + '/publication.txt', 'r'))
 
@@ -36,30 +37,34 @@ for root, dirs, files in os.walk(base):
             except:
                 doi = None
             year = pub_data['year']
+            for key, value in pub_data.iteritems():
+                if isinstance(value, list):
+                    value = json.dumps(value)
+                else:
+                    try:
+                        value = int(value)
+                    except:
+                        pass
+                publication_keys.update({'publication_' + key: value})
+
         except:
             year = 2017
             doi = None
             reference = '{}({})'.format(user, year)
-        publication_keys = {}
-        for key, value in pub_data.iteritems():
-            if isinstance(value, list):
-                value = json.dumps(value)
-            else:
-                try:
-                    value = int(value)
-                except:
-                    pass
-            publication_keys.update({'publication_' + key: value})
+
     if level == 2:
         DFT_code = root.split('/')[-1]
 
     if level == 3:
         DFT_functional = root.split('/')[-1]
 
-    if level == 4:
+    if level == 4:        
         folder_name = root.split('/')[-1]
-
-        reaction = get_reaction_from_folder(folder_name)  # reaction dict
+        try:
+            reaction = get_reaction_from_folder(folder_name)  # reaction dict
+        except:
+            dirs = []
+            continue
 
         reaction_atoms, prefactors, states = get_reaction_atoms(reaction)
 
