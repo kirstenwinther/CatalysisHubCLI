@@ -287,6 +287,7 @@ def get_bulk_composition(filename):
 def check_in_ase(filename, ase_db):
     """ Check if entry is allready in ASE db
     """
+    print filename
     db_ase = ase.db.connect(ase_db)
     atoms = read(filename)
     energy = atoms.get_potential_energy()

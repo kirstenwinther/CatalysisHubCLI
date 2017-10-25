@@ -9,22 +9,43 @@ from ase.io.trajectory import convert
 import ase
 from ase import db
 
-catbase = os.environ['data'] + 'winther/'
-ase_db = catbase + 'atoms.db'
+try:  #sherlock 1 or 2
+    sherlock = os.environ['SHERLOCK']
+    if sherlock == '1':
+        catbase = '/home/winther/data_catapp/'
+    elif sherlock == '2':
+        catbase = '/home/users/winther/data_catapp/'
+except:  # SUNCAT
+    catbase = '/nfs/slac/g/suncatfs/data_catapp/'
+
+data_base = catbase + 'winther/databases/'
+ase_db = data_base + 'atoms.db'
 
 user = argv[1]
-data_home = os.environ['data'] + '/'
+user_base = catbase + user
+user_base_level = len(user_base.split("/"))
 
-base = data_home + user
-base_level = len(base.split("/"))
-
-maxdepth = 0
 i = 0
 up = 0
 
-for root, dirs, files in os.walk(base):
-    level = len(root.split("/")) - base_level
-    if level == 1:
+user_file = '{}user_specific/{}.txt'.format(catbase, user) 
+if os.path.isfile(user_file):
+    user_spec = json.load(open(user_file, 'r'))
+    locals().update(user_spec)
+else:
+    pub_level = 1
+    DFT_level = 2
+    XC_level = 3
+    reaction_level = 4
+    metal_level = 5
+    facet_level = 6
+    site_level = 6
+    final_level = 6
+    
+for root, dirs, files in os.walk(user_base):
+    print root
+    level = len(root.split("/")) - user_base_level
+    if level == pub_level:
         # assert 'publication.txt' in files
         publication_keys = {}
         try:
@@ -35,6 +56,7 @@ for root, dirs, files in os.walk(base):
             try:
                 doi = pub_data['doi']
             except:
+                print 'ERROR: No doi'
                 doi = None
             year = pub_data['year']
             for key, value in pub_data.iteritems():
@@ -48,21 +70,23 @@ for root, dirs, files in os.walk(base):
                 publication_keys.update({'publication_' + key: value})
 
         except:
+            print 'ERROR: insufficient publication info'
             year = 2017
             doi = None
             reference = '{}({})'.format(user, year)
 
-    if level == 2:
+    if level == DFT_level:
         DFT_code = root.split('/')[-1]
 
-    if level == 3:
+    if level == XC_level:
         DFT_functional = root.split('/')[-1]
 
-    if level == 4:        
+    if level == reaction_level:        
         folder_name = root.split('/')[-1]
         try:
             reaction = get_reaction_from_folder(folder_name)  # reaction dict
         except:
+            print 'ERROR: omitting directory {}'.format(root)
             dirs = []
             continue
 
@@ -73,14 +97,12 @@ for root, dirs, files in os.walk(base):
             gas_i[key] = [i for i in range(len(mollist)) if states[key][i] == 'gas']
 
 
-
         traj_files = {'reactants': ['' for n in range(len(reaction['reactants']))],
                       'products': ['' for n in range(len(reaction['products']))]}
 
         chemical_compositions = {'reactants': ['' for n in range(len(reaction['reactants']))],
                       'products': ['' for n in range(len(reaction['products']))]}
         traj_gas = [f for f in files if f.endswith('.traj')]
-
 
         ase_ids = {}
         reference_ase_ids = {}
@@ -104,8 +126,8 @@ for root, dirs, files in os.walk(base):
 
             for key, mollist in reaction_atoms.iteritems():
                 for i, molecule in enumerate(mollist):
-                    if molecule == chemical_composition:
-                        assert found is False  # Should only be found once?
+                    if molecule == chemical_composition and states[key][i] == 'gas':
+                        assert found is False, root + ' ' + chemical_composition  # Should only be found once?
                         found = True
                         traj_files[key][i] = traj
                         chemical_compositions[key][i] = chemical_composition_hill
@@ -116,32 +138,40 @@ for root, dirs, files in os.walk(base):
                 print '{} file is not part of reaction, include as reference'.format(f)
                 ase_ids.update({chemical_composition_hill + 'gas': ase_id})
                 
-    if level == 5:
-        up = 0
+    #if level == metal_level:
+    #    up = 0
 
-    if level == 5 + up:
+    if level == metal_level: # + up:
         metal = root.split('/')[-1]
-        if user == 'roling':
-            if metal == reaction[0].replace('*', ''):
-                up += 1
+        #if user == 'roling':
+        #    if metal == reaction[0].replace('*', ''):
+        #        up += 1
 
         if len(metal.split('_')) > 1:
             metal = metal.split('_')[0]
             facet = metal.split('_')[1]
             up -= 1
             
-    if level == 6 + up:
-        facet = root.split('/')[-1]
+    if level == facet_level: # + up:
+        folder_name = root.split('/')[-1]
+        if facet_level == site_level:
+            facet = folder_name.split('_')[0].split('-')[0]
         if not 'x' in facet:
             facet = '{}x{}x{}'.format(facet[0], facet[1], facet[2])
 
         sites = ''
-    if level > 6 + up:
-         sites = '_'.join(info for info in root.split('/')[6 + up + base_level:])
+    if level == site_level:
+        if facet_level == site_level:
+            sites = folder_name.split('_')[-1].split('-')[-1]
+            if sites == folder_name.split('_')[0].split('-')[0]:
+                sites = ''
+        else:
+            sites = '_'.join(info for info in root.split('/')[site_level + base_level:])
 
-    traj_slabs = [f for f in files if f.endswith('.traj') and 'gas' not in f]
-
-    if len(traj_slabs) > 0 and level >= 6 + up:
+    if level == final_level:
+        traj_slabs = [f for f in files if f.endswith('.traj') and 'gas' not in f]
+        if traj_slabs == []:
+            continue
         assert len(traj_slabs) > 1, 'Need at least two files!'
         n_atoms = np.array([])
         empty_i = None
@@ -163,14 +193,14 @@ for root, dirs, files in os.walk(base):
             empty_i = np.argmin(n_atoms)
         traj_empty = root + '/' + traj_slabs[empty_i]
 
-
+        print chemical_composition_slabs
         # Identify TS
         if ts_i is not None:
             traj_TS = root + '/' + traj_slabs[ts_i]
             TS_id = {get_chemical_formula(traj_TS): ase_id}
             
-        elif ts_i is None and len(traj_slabs) > len(reaction) + 1:
-            raise AssertionError, 'which one is the transition state???'
+        #elif ts_i is None and len(traj_slabs) > len(reaction) + 1:
+            #raise AssertionError, 'which one is the transition state???'
         else:
             TS_id = None
             activation_energy = None
@@ -183,15 +213,22 @@ for root, dirs, files in os.walk(base):
             traj = '{}/{}'.format(root, f)
             chemical_composition_metal = get_chemical_formula(traj)
 
-            ase_id = check_in_ase(traj, ase_db)
+            print res
+
+            try:
+                ase_id = check_in_ase(traj, ase_db)
+            except:
+                print 'ERROR: no energy: {}'.format(traj)
+                continue
             if ase_id is None:
+                print sites, facet
                 key_value_pairs = publication_keys.copy()
                 key_value_pairs.update({'name': get_chemical_formula(traj_empty),
-                                        'species': '',
-                                        'epot': get_energies([traj_empty]),
+                                        'species': res,
+                                        'epot': get_energies([traj]),
                                         'site': sites,
                                         'facet': facet,
-                                        'layers': get_n_layers(traj_empty)})
+                                        'layers': get_n_layers(traj)})
                 ase_id = write_ase(traj, ase_db, **key_value_pairs)
 
             
@@ -225,10 +262,15 @@ for root, dirs, files in os.walk(base):
         bulk_composition = get_bulk_composition(traj_empty)
         chemical_composition = get_chemical_formula(traj_empty)
         
-        reaction_energy = get_reaction_energy(traj_files, prefactors)
+        print root
+        print reaction
+        try: 
+            reaction_energy = get_reaction_energy(traj_files, prefactors)
+        except:
+            print 'ERROR: reaction energy failed: {}'.format(root)
+            continue
+        print reaction_energy
         
-        print reaction, reaction_energy
-
         key_value_pairs_catapp = {'chemical_composition': chemical_composition,
                                   'surface_composition': surface_composition,
                                   'facet': facet,
@@ -247,7 +289,7 @@ for root, dirs, files in os.walk(base):
                               }
         
 
-        with CatappSQLite(catbase + 'catapp.db') as db:
+        with CatappSQLite(data_base + 'catapp.db') as db:
             id = db.write(key_value_pairs_catapp)
             print 'Writing to catapp db row id = {}'.format(id)
 

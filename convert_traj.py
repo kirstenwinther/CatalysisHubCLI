@@ -24,3 +24,4 @@ for roots, dirs, files in os.walk(base):
     traj_files = [f for f in files if f.endswith('traj')]
     for f in traj_files:
         check_traj('{}/{}'.format(roots, f))
+
