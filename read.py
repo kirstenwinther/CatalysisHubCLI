@@ -28,7 +28,7 @@ user_base_level = len(user_base.split("/"))
 i = 0
 up = 0
 
-user_file = '{}user_specific/{}.txt'.format(catbase, user) 
+user_file = '{}winther/user_specific/{}.txt'.format(catbase, user) 
 if os.path.isfile(user_file):
     user_spec = json.load(open(user_file, 'r'))
     locals().update(user_spec)
@@ -41,7 +41,9 @@ else:
     facet_level = 6
     site_level = 6
     final_level = 6
-    
+
+print facet_level
+
 for root, dirs, files in os.walk(user_base):
     print root
     level = len(root.split("/")) - user_base_level
@@ -154,8 +156,8 @@ for root, dirs, files in os.walk(user_base):
             
     if level == facet_level: # + up:
         folder_name = root.split('/')[-1]
-        if facet_level == site_level:
-            facet = folder_name.split('_')[0].split('-')[0]
+        #if facet_level == site_level:
+        facet = folder_name.split('_')[0].split('-')[0]
         if not 'x' in facet:
             facet = '{}x{}x{}'.format(facet[0], facet[1], facet[2])
 
@@ -166,7 +168,7 @@ for root, dirs, files in os.walk(user_base):
             if sites == folder_name.split('_')[0].split('-')[0]:
                 sites = ''
         else:
-            sites = '_'.join(info for info in root.split('/')[site_level + base_level:])
+            sites = '_'.join(info for info in root.split('/')[site_level + user_base_level:])
 
     if level == final_level:
         traj_slabs = [f for f in files if f.endswith('.traj') and 'gas' not in f]
