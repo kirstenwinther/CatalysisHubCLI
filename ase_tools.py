@@ -134,19 +134,29 @@ def get_state(name):
     return state
 
 
-def get_reaction_energy(traj_files, prefactors):
+def get_reaction_energy(traj_files, prefactors, prefactors_TS):
     energies = {}
     for key in traj_files.keys():
         energies.update({key: ['' for n in range(len(traj_files[key]))]})
     for key, trajlist in traj_files.iteritems():
         for i, traj in enumerate(trajlist):
             energies[key][i] = prefactors[key][i] * get_energy(traj)
+    
 
     energy_reactants = np.sum(energies['reactants'])
     energy_products = np.sum(energies['products'])
-    reaction_energy = energy_products - energy_reactants
-    return reaction_energy
 
+    reaction_energy = energy_products - energy_reactants
+
+    if 'TS' in traj_files.keys():
+        for i, traj in enumerate(traj_files['reactants']):
+            energies['reactants'][i] = prefactors_TS['reactants'][i] * get_energy(traj)
+        energy_reactants = np.sum(energies['reactants'])
+        energy_TS = energies['TS'][0]
+        activation_energy = energy_TS - energy_reactants
+    else:
+        activation_energy = None
+    return reaction_energy, activation_energy
 
 def tag_atoms(atoms, types=None):
     non_metals = ['H', 'He', 'B', 'C', 'N', 'O', 'F', 'Ne',
@@ -287,7 +297,7 @@ def get_bulk_composition(filename):
 def check_in_ase(filename, ase_db):
     """ Check if entry is allready in ASE db
     """
-    print filename
+
     db_ase = ase.db.connect(ase_db)
     atoms = read(filename)
     energy = atoms.get_potential_energy()
@@ -360,7 +370,14 @@ def get_reaction_atoms(reaction):
 
     return reaction_atoms, prefactors, states
 
-
+def debug_assert(expression, message, debug=False):
+    if debug:
+        try:
+            assert expression, message
+        except AssertionError as e:
+            print(e)
+    else:
+         assert expression, message
 
 #def handle_gas_species():
     
