@@ -13,7 +13,7 @@ except:  # SUNCAT
 
 print catbase
 
-user, pub, DFT, XC, reaction, metal, facet, site, final = argv[1:]
+user, pub, DFT, XC, reaction, metal, facet, site, final = argv[1:10]
 
 user_dict = {'user_level': user,
              'pub_level': int(pub),
@@ -25,7 +25,7 @@ user_dict = {'user_level': user,
              'site_level': int(site),
              'final_level': int(final)
              }
-
+    
 user_file = '{}winther/user_specific/{}.txt'.format(catbase, user) 
 json.dump(user_dict, open(user_file, 'w'))
 

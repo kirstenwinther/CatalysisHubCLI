@@ -5,6 +5,10 @@ def extract_atoms(molecule):
     # return a string with all atoms in molecule
     if molecule == '':
         return molecule
+    try:
+        return float(molecule)
+    except:
+        pass
     atoms = ''
     if not molecule[0].isalpha():
         i = 0
@@ -44,6 +48,8 @@ def add_atoms(atoms_list):
     add = ''
     sub = ''
     for atoms in atoms_list:
+        if isinstance(atoms, float):
+            continue
         if len(atoms)>0 and atoms[0] == '-':
             sub += atoms[1:]
         else:
@@ -56,15 +62,27 @@ def check_reaction(reactants, products):
     folder structure.
     list of reactants -> list of products
     """
-    
     reactants = [reactant.strip('star').strip('gas') for reactant in reactants]
     products = [product.strip('star').strip('gas') for product in products]
 
-    reactants = [extract_atoms(reactant) for reactant in reactants]
-    products = [extract_atoms(product) for product in products]
+    reactant_atoms = [extract_atoms(reactant) for reactant in reactants]
+    product_atoms = [extract_atoms(product) for product in products]
 
-    reactants = add_atoms(reactants)
-    products = add_atoms(products)
+    reactants = add_atoms(reactant_atoms)
+    products = add_atoms(product_atoms)
 
+    r_stars = 0
+    p_stars = 0
+    for i, a in enumerate(reactant_atoms):
+        if a=='' or 'star' in reactants[i]:
+            r_stars += 1
+        elif isinstance(a, float):
+            r_stars += a
+    for a in product_atoms:
+        if a=='':
+            p_stars += 1
+        elif isinstance(a, float):
+            p_stars += a
+    print r_stars, p_stars
     assert ''.join(sorted(reactants)) == ''.join(sorted(products))
-
+    #assert r_stars == p_stars, 'Please match the number of surfaces on each side. Left side: {} *s, right side: {} *s'.format(r_stars, p_stars)
