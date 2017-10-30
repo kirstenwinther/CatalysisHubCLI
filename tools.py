@@ -83,6 +83,5 @@ def check_reaction(reactants, products):
             p_stars += 1
         elif isinstance(a, float):
             p_stars += a
-    print r_stars, p_stars
     assert ''.join(sorted(reactants)) == ''.join(sorted(products))
     #assert r_stars == p_stars, 'Please match the number of surfaces on each side. Left side: {} *s, right side: {} *s'.format(r_stars, p_stars)
