@@ -12,14 +12,24 @@ import json
 import csv
 
 
-def check_traj(filename):
+def check_traj(filename, strict=True):
     try:
         atoms = read(filename)        
-        print 'traj file OK!'
     except:
         print 'Converting to new ase format!'
         convert(filename)
-    return
+        atom = read(filename)
+    
+    try:
+        atoms.get_potential_energy()
+    except:
+        if strict:
+            raise RuntimeError, 'No energy for .traj file: {}'.format(filename)
+        else:
+            print 'halooo!'
+            return False
+    return True
+
 
 def get_reference(filename):
     atoms = read(filename)
@@ -101,12 +111,18 @@ def get_atoms(molecule):
     if molecule == '':
         prefactor = 1
         return molecule, prefactor
-
+    try:
+        return '', float(molecule)
+    except:
+        pass
     if not molecule[0].isalpha():
         i = 0
         while not molecule[i].isalpha():
             i += 1
-        prefactor = float(molecule[:i])
+        prefactor = molecule[:i]
+        if prefactor == '-':
+            prefactor = -1
+        prefactor = float(prefactor)
         molecule = molecule[i:]
     else:
         prefactor = 1
@@ -310,7 +326,7 @@ def check_in_ase(filename, ase_db):
             n += 1
             ids.append(row.id)
     if n > 0:
-        print 'Already in ASE database'
+        print '{} already in ASE database'.format(formula)
         id = ids[0]
         unique_id = db_ase.get(id)['unique_id']
         return unique_id
@@ -331,7 +347,12 @@ def write_ase(filename, db_file, **key_value_pairs):
 
 def get_reaction_from_folder(folder_name):
     reaction = {}
-    if '__' in folder_name:  # Complicated reaction
+    if '__' in folder_name:  # Complicated reaction        
+        if '-' in folder_name and '_-' not in folder_name:
+            # intermediate syntax
+            a,b = folder_name.split('-')
+            folder_name = a + '_-' + b
+        
         reaction.update({'reactants': folder_name.split('__')[0].split('_'),
                         'products': folder_name.split('__')[1].split('_')})
 
