@@ -103,3 +103,18 @@ class CatappSQLite:
         cur.execute('SELECT seq FROM sqlite_sequence WHERE name="catapp"')
         id = cur.fetchone()[0]
         return id
+    
+    def check(self, reaction_energy):
+        con = self.connection or self._connect()
+        self._initialize(con)
+        cur = con.cursor()
+        statement = 'SELECT catapp.id FROM \n catapp \n WHERE \n catapp.reaction_energy=?'
+        argument = [reaction_energy]
+        
+        cur.execute(statement, argument)
+        rows = cur.fetchall()
+        if len(rows) > 0:
+            id = rows[0][0]
+        else:
+            id = None
+        return id
