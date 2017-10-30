@@ -19,6 +19,7 @@ except:  # SUNCAT
     catbase = '/nfs/slac/g/suncatfs/data_catapp/'
 
 debug = False
+strict = False
 
 data_base = catbase + 'winther/databases/'
 ase_db = data_base + 'atoms.db'
@@ -41,12 +42,16 @@ else:
     reaction_level = 4
     metal_level = 5
     facet_level = 6
-    site_level = 6
+    site_level = None
     final_level = 6
 
+if site_level is None or site_level == "None":
+    sites = ''
 
 for root, dirs, files in os.walk(user_base):
 
+    if omit_folder in dirs:
+        dirs.remove(omit_folder)
     level = len(root.split("/")) - user_base_level
     if level == pub_level:
         # assert 'publication.txt' in files
@@ -93,6 +98,8 @@ for root, dirs, files in os.walk(user_base):
             dirs = []
             continue
 
+        print '-------------- REACTION:  {} --> {} -----------------'.format('+'.join(reaction['reactants']), '+'.join(reaction['products']))
+
         reaction_atoms, prefactors, states = get_reaction_atoms(reaction)
         import copy
         prefactors_TS = copy.deepcopy(prefactors)
@@ -126,7 +133,7 @@ for root, dirs, files in os.walk(user_base):
             prefactors['products'].append(-diff)
             states['products'].append('star')
             reaction_atoms['products'].append('')
-        print 'n_r: {}'.format(n_r)
+
         if n_r > 1:
             if len([s for s in states['reactants'] if s =='star']) > 1:
                 prefactors_TS['reactants'][-1] = 0
@@ -148,7 +155,8 @@ for root, dirs, files in os.walk(user_base):
             ase_id = None
             found = False
             traj = '{}/{}'.format(root, f)
-            check_traj(traj)
+            if not check_traj(traj, strict):
+                continue
             chemical_composition = \
                 ''.join(sorted(get_chemical_formula(traj, mode='all')))
             chemical_composition_hill = get_chemical_formula(traj, mode='hill')
@@ -181,33 +189,43 @@ for root, dirs, files in os.walk(user_base):
     #if level == metal_level:
     #    up = 0
 
-    if level == metal_level: # + up:
+
+    if level == metal_level:
         metal = root.split('/')[-1]
+        if metal_level == facet_level:
+            if len(metal.split('_')) == 2:
+                metal, facet = metal.split('_')
+            else:
+                facet = None
+        print '--------------- METAL: {} ---------------'.format(metal) 
         #if user == 'roling':
         #    if metal == reaction[0].replace('*', ''):
         #        up += 1
 
-        if len(metal.split('_')) > 1:
-            metal, facet = metal.split('_')[0]
-            
     if level == facet_level: # + up:
         folder_name = root.split('/')[-1]
-        #if facet_level == site_level:
-        facet = folder_name.split('_')[0].split('-')[0]
+        if not metal_level == facet_level:
+            if not facet_level == site_level:
+                facet = folder_name
+            else:
+                split = folder_name.split('_')
+                if len(split) == 1:
+                    split = split[0].split('-')
+                facet, site = split
         if not 'x' in facet:
-            facet = '{}x{}x{}'.format(facet[0], facet[1], facet[2])
+            facetstr = 'x'.join('{}' for f in facet)
+            facet = facetstr.format(*facet)
+        print '--------------- FACET: {} ---------------'.format(facet) 
 
-        sites = ''
     if level == site_level:
-        if facet_level == site_level:
-            sites = folder_name.split('_')[-1].split('-')[-1]
-            if sites == folder_name.split('_')[0].split('-')[0]:
-                sites = ''
-        else:
+        if not facet_level == site_level:
             dirjoin = '_'.join(info for info in root.split('/'))
             sites = dirjoin[site_level + user_base_level:]
 
     if level == final_level:
+        reaction_energy = None
+        activation_energy = None
+        
         traj_slabs = [f for f in files if f.endswith('.traj') \
                           and 'gas' not in f]
         if traj_slabs == []:
@@ -217,19 +235,24 @@ for root, dirs, files in os.walk(user_base):
         empty_i = None
         ts_i = None
         chemical_composition_slabs = []
+        breakloop = False
         for i, f in enumerate(traj_slabs):
             if 'empty' in f:
                 empty_i = i
             if 'TS' in f:
                 ts_i = i
-
             traj = '{}/{}'.format(root, f)
-            check_traj(traj)
+            if not check_traj(traj, strict):
+                breakloop = True
+                break
             chemical_composition_slabs = \
                 np.append(chemical_composition_slabs, 
                           get_chemical_formula(traj, mode='all'))
             n_atoms = np.append(n_atoms,get_number_of_atoms(traj))
-            
+
+        if breakloop:
+            continue
+
         # Empty slab has least atoms
         if empty_i is None:
             empty_i = np.argmin(n_atoms)
@@ -248,19 +271,21 @@ for root, dirs, files in os.walk(user_base):
             TS_id = None
             activation_energy = None
 
+        #stop
         for i, f in enumerate(traj_slabs):
             ase_id = None
             found = False
             res = chemical_composition_slabs[i]
-            res = ''.join(sorted(res.replace(chemical_composition_slabs[empty_i], '', 1)))
+            for char in chemical_composition_slabs[empty_i]:
+                res = res.replace(char, '', 1)
+
+            res = ''.join(sorted(res))
+
             traj = '{}/{}'.format(root, f)
             chemical_composition_metal = get_chemical_formula(traj)
 
-            try:
-                ase_id = check_in_ase(traj, ase_db)
-            except:
-                print 'ERROR: no energy: {}'.format(traj)
-                continue
+            ase_id = check_in_ase(traj, ase_db)
+
             if ase_id is None:
 
                 key_value_pairs = publication_keys.copy()
@@ -283,12 +308,14 @@ for root, dirs, files in os.walk(user_base):
 
             for key, mollist in reaction_atoms.iteritems():
                 for n, molecule in enumerate(mollist):
-                    if res == molecule and states[key][n] == 'star':
-                        found = True
-                        traj_files[key][n] = traj
-                        chemical_compositions[key][n] = chemical_composition_metal
-                        ase_ids.update({clear_prefactor(reaction[key][n]): ase_id})
-
+                    for k in range(1, 5):
+                        molecule = ''.join(sorted(molecule * k))
+                        if res == molecule and states[key][n] == 'star':
+                            found = True
+                            traj_files[key][n] = traj
+                            chemical_compositions[key][n] = chemical_composition_metal
+                            ase_ids.update({clear_prefactor(reaction[key][n]): ase_id})
+                        
             if found is False:
                 print '{} file is not part of reaction, include as reference'.format(f)
                 ase_ids.update({chemical_composition_metal: ase_id})        
@@ -309,7 +336,7 @@ for root, dirs, files in os.walk(user_base):
         #    continue
         
         
-        expr = -10 < reaction_energy < 10
+        expr = -20 < reaction_energy < 20
         debug_assert(expr,
                      'reaction energy is wrong: {} eV: {}'.format(reaction_energy, root),
                      debug)
@@ -338,8 +365,11 @@ for root, dirs, files in os.walk(user_base):
         
         
         with CatappSQLite(data_base + 'catapp.db') as db:
-            id = db.write(key_value_pairs_catapp)
-            print 'Writing to catapp db row id = {}'.format(id)
-
+            id = db.check(reaction_energy)
+            if id is not None:
+                print 'Allready in catapp db with row id = {}'.format(id)
+            else:
+                id = db.write(key_value_pairs_catapp)
+                print 'Written to catapp db row id = {}'.format(id)
 
 
