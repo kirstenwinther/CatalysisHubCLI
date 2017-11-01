@@ -44,14 +44,15 @@ else:
     facet_level = 6
     site_level = None
     final_level = 6
+    omit_folders = []
 
 if site_level is None or site_level == "None":
     sites = ''
 
 for root, dirs, files in os.walk(user_base):
-
-    if omit_folder in dirs:
-        dirs.remove(omit_folder)
+    for omit_folder in omit_folders:
+        if omit_folder in dirs:
+            dirs.remove(omit_folder)
     level = len(root.split("/")) - user_base_level
     if level == pub_level:
         # assert 'publication.txt' in files
@@ -81,7 +82,7 @@ for root, dirs, files in os.walk(user_base):
             print 'ERROR: insufficient publication info'
             year = 2017
             doi = None
-            reference = '{}({})'.format(user, year)
+            referencex = '{}({})'.format(user, year)
 
     if level == DFT_level:
         DFT_code = root.split('/')[-1]
@@ -212,9 +213,10 @@ for root, dirs, files in os.walk(user_base):
                 if len(split) == 1:
                     split = split[0].split('-')
                 facet, site = split
-        if not 'x' in facet:
+        ase_facet = facet
+        if not 'x' in facet and not '-' in facet:
             facetstr = 'x'.join('{}' for f in facet)
-            facet = facetstr.format(*facet)
+            ase_facet = facetstr.format(*facet)
         print '--------------- FACET: {} ---------------'.format(facet) 
 
     if level == site_level:
@@ -272,6 +274,9 @@ for root, dirs, files in os.walk(user_base):
             activation_energy = None
 
         #stop
+        prefactor_scale = copy.deepcopy(prefactors)
+        for key1, values in prefactor_scale.iteritems():
+                    prefactor_scale[key1] = [1 for v in values]                
         for i, f in enumerate(traj_slabs):
             ase_id = None
             found = False
@@ -280,7 +285,7 @@ for root, dirs, files in os.walk(user_base):
                 res = res.replace(char, '', 1)
 
             res = ''.join(sorted(res))
-
+            print traj
             traj = '{}/{}'.format(root, f)
             chemical_composition_metal = get_chemical_formula(traj)
 
@@ -293,7 +298,7 @@ for root, dirs, files in os.walk(user_base):
                                         'species': res,
                                         'epot': get_energies([traj]),
                                         'site': sites,
-                                        'facet': facet,
+                                        'facet': ase_facet,
                                         'layers': get_n_layers(traj)})
                 ase_id = write_ase(traj, ase_db, **key_value_pairs)
 
@@ -303,19 +308,36 @@ for root, dirs, files in os.walk(user_base):
                 ase_ids.update({'TS': ase_id})
                 continue
             elif i == empty_i:
-                found = True
+                #found = True
                 ase_ids.update({'star': ase_id})
 
             for key, mollist in reaction_atoms.iteritems():
+                if found:
+                    continue
                 for n, molecule in enumerate(mollist):
+                    if found:
+                        continue
                     for k in range(1, 5):
+                        if found:
+                            continue
                         molecule = ''.join(sorted(molecule * k))
                         if res == molecule and states[key][n] == 'star':
                             found = True
+                            n_ads = k
+                            ads_i = n
+                            ads_key = key
                             traj_files[key][n] = traj
                             chemical_compositions[key][n] = chemical_composition_metal
                             ase_ids.update({clear_prefactor(reaction[key][n]): ase_id})
-                        
+      
+
+            if n_ads > 1:
+                for key1, values in prefactor_scale.iteritems():
+                    for mol_i in range(len(values)):
+                        if states[key1][mol_i] == 'gas':
+                            prefactor_scale[key1][mol_i] = n_ads
+
+
             if found is False:
                 print '{} file is not part of reaction, include as reference'.format(f)
                 ase_ids.update({chemical_composition_metal: ase_id})        
@@ -328,15 +350,22 @@ for root, dirs, files in os.walk(user_base):
         bulk_composition = get_bulk_composition(traj_empty)
         chemical_composition = get_chemical_formula(traj_empty)
         
-       # try: 
+        prefactors_final = copy.deepcopy(prefactors)
+        for key in prefactors:
+            for i, v in enumerate(prefactors[key]):
+                prefactors_final[key][i] = prefactors[key][i] * prefactor_scale[key][i] 
+
+        # try: 
         reaction_energy, activation_energy = \
-            get_reaction_energy(traj_files, prefactors, prefactors_TS)
+            get_reaction_energy(traj_files, prefactors_final, prefactors_TS)    
+
+        print reaction_energy
         #except:
         #    print 'ERROR: reaction energy failed: {}'.format(root)
         #    continue
         
         
-        expr = -20 < reaction_energy < 20
+        expr = -10 < reaction_energy < 10
         debug_assert(expr,
                      'reaction energy is wrong: {} eV: {}'.format(reaction_energy, root),
                      debug)
@@ -345,7 +374,7 @@ for root, dirs, files in os.walk(user_base):
                      'activation energy is wrong: {} eV: {}'.format(activation_energy, root),
                      debug)
 
-
+        
 #       print chemical_composition, reaction_energy, activation_energy
         key_value_pairs_catapp = {'chemical_composition': chemical_composition,
                                   'surface_composition': surface_composition,
