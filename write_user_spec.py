@@ -15,7 +15,7 @@ print catbase
 
 user, pub, DFT, XC, reaction, metal, facet, site, final = argv[1:10]
 
-user_dict = {'user_level': user,
+user_dict = {'user': user,
              'pub_level': int(pub),
              'DFT_level': int(DFT),
              'XC_level': int(XC),

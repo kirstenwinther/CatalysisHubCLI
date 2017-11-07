@@ -12,6 +12,7 @@ try:  # sherlock 1 or 2
         catbase = '/home/users/winther/data_catapp/winther/scripts'
 except:  # SUNCAT
     catbase = '/nfs/slac/g/suncatfs/data_catapp/winther/scripts'
+
 path.append(catbase)
 from ase_tools import check_traj
 

@@ -1,5 +1,6 @@
 import os
 import csv
+import copy
 import sqlite3
 from sys import argv
 from ase_tools import *
@@ -31,6 +32,8 @@ user_base_level = len(user_base.split("/"))
 i = 0
 up = 0
 
+omit_folders = []
+
 user_file = '{}winther/user_specific/{}.txt'.format(catbase, user) 
 if os.path.isfile(user_file):
     user_spec = json.load(open(user_file, 'r'))
@@ -44,7 +47,7 @@ else:
     facet_level = 6
     site_level = None
     final_level = 6
-    omit_folders = []
+
 
 if site_level is None or site_level == "None":
     sites = ''
@@ -82,7 +85,7 @@ for root, dirs, files in os.walk(user_base):
             print 'ERROR: insufficient publication info'
             year = 2017
             doi = None
-            referencex = '{}({})'.format(user, year)
+            reference = '{}({})'.format(user, year)
 
     if level == DFT_level:
         DFT_code = root.split('/')[-1]
@@ -102,7 +105,7 @@ for root, dirs, files in os.walk(user_base):
         print '-------------- REACTION:  {} --> {} -----------------'.format('+'.join(reaction['reactants']), '+'.join(reaction['products']))
 
         reaction_atoms, prefactors, states = get_reaction_atoms(reaction)
-        import copy
+
         prefactors_TS = copy.deepcopy(prefactors)
         
         # empty slab balance
@@ -156,7 +159,7 @@ for root, dirs, files in os.walk(user_base):
             ase_id = None
             found = False
             traj = '{}/{}'.format(root, f)
-            if not check_traj(traj, strict):
+            if not check_traj(traj, strict, False):
                 continue
             chemical_composition = \
                 ''.join(sorted(get_chemical_formula(traj, mode='all')))
@@ -244,7 +247,7 @@ for root, dirs, files in os.walk(user_base):
             if 'TS' in f:
                 ts_i = i
             traj = '{}/{}'.format(root, f)
-            if not check_traj(traj, strict):
+            if not check_traj(traj, strict, False):
                 breakloop = True
                 break
             chemical_composition_slabs = \
@@ -285,7 +288,7 @@ for root, dirs, files in os.walk(user_base):
                 res = res.replace(char, '', 1)
 
             res = ''.join(sorted(res))
-            print traj
+
             traj = '{}/{}'.format(root, f)
             chemical_composition_metal = get_chemical_formula(traj)
 
@@ -356,6 +359,7 @@ for root, dirs, files in os.walk(user_base):
                 prefactors_final[key][i] = prefactors[key][i] * prefactor_scale[key][i] 
 
         # try: 
+
         reaction_energy, activation_energy = \
             get_reaction_energy(traj_files, prefactors_final, prefactors_TS)    
 

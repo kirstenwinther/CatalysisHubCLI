@@ -12,13 +12,21 @@ import json
 import csv
 
 
-def check_traj(filename, strict=True):
+def check_traj(filename, strict=True, verbose=True):
     try:
-        atoms = read(filename)        
+        atoms = read(filename)
+        if verbose:
+            print 'traj file ok!'
     except:
-        print 'Converting to new ase format!'
-        convert(filename)
-        atom = read(filename)
+        try:
+            convert(filename)
+            if verbose:
+                print 'Converting to new ase format!'
+            atoms = read(filename)
+        except:
+            if verbose:
+                print 'Could not read .traj file'
+            return False
     
     try:
         atoms.get_potential_energy()
@@ -26,7 +34,6 @@ def check_traj(filename, strict=True):
         if strict:
             raise RuntimeError, 'No energy for .traj file: {}'.format(filename)
         else:
-            print 'halooo!'
             return False
     return True
 
@@ -287,7 +294,6 @@ def get_bulk_composition(filename):
 
     layer_i = get_layers(atoms)
     top_layer_i = np.max(layer_i)
-
     compositions = []
     for i in range(0, top_layer_i + 1):
         atom_i = np.where(layer_i == top_layer_i - i)[0]
@@ -303,7 +309,7 @@ def get_bulk_composition(filename):
     same_next_layer = compositions[1:] == compositions[:-1]
     bulk_compositions = compositions[:-1][same_next_layer]
 
-    if all(c == bulk_compositions[0] for c in bulk_compositions):
+    if len(bulk_compositions) > 0 and all(c == bulk_compositions[0] for c in bulk_compositions):
         bulk_composition = bulk_compositions[0]
     else:
         bulk_composition = None
