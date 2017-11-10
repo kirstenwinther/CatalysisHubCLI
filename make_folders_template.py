@@ -42,7 +42,6 @@ pages = ''
 year = '2017'  # year required
 publisher = ''
 doi = ''
-url = ''
 
 DFT_code = ''  # for example 'Quantum ESPRESSO'
 DFT_functional = ''  # For example 'BEEF-vdW'           
@@ -121,7 +120,6 @@ publication_dict = {'title': title,
                     'pages': pages,
                     'year': year,
                     'publisher': publisher,
-                    'url': url,
                     'doi': doi
                     }
 

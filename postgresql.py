@@ -1,0 +1,125 @@
+import psycopg2
+
+init_command = \
+                """CREATE TABLE catapp (
+                id SERIAL PRIMARY KEY,
+                chemical_composition text,
+                surface_composition text,
+                facet text,
+                sites text,
+                reactants json,
+                products json,
+                reaction_energy numeric,
+                activation_energy numeric,
+                dft_code text,
+                dft_functional text,
+                reference json,
+                doi text,
+                year smallint,
+                ase_ids json
+                );"""
+
+
+class CatappPostgreSQL:
+    def __init__(self):
+        self.initialized = False
+        self.connection = None
+        self.id = None
+
+    def _connect(self):
+        con = psycopg2.connect(host="catappdatabase.cjlis1fysyzx.us-west-1.rds.amazonaws.com", 
+                               user='catappuser',
+                               password='catappdb',
+                               port=5432,
+                               database='catappdatabase')
+        
+        return con
+
+    def __enter__(self):
+        assert self.connection is None
+        self.connection = self._connect()
+        return self
+
+    def __exit__(self, exc_type):#, exc_value, tb):
+        if exc_type is None:
+            self.connection.commit()
+        else:
+            self.connection.rollback()
+        self.connection.close()
+        self.connection = None
+
+    def _initialize(self, con):
+        if self.initialized:
+            return
+        cur = con.cursor()
+
+        cur.execute("""SELECT to_regclass('catapp');""")
+        if cur.fetchone()[0] == None:  # Catapp doesn't exist
+             cur.execute(init_command)
+             con.commit()
+        self.initialized = True
+        return self
+
+    def write(self, values):
+        con = self.connection or self._connect()
+        self._initialize(con)
+        cur = con.cursor()
+        #id = self.get_last_id(cur)
+        #if self.id is None:
+        #    id = self.get_last_id(cur) + 1
+        #else:
+        #    id = self.id
+
+        key_str = 'chemical_composition, surface_composition, facet, sites, reactants, products, reaction_energy, activation_energy, dft_code, dft_functional, reference, doi, year, ase_ids'
+        value_str = "'{}'".format(values[1])
+        for v in values[2:]:
+            if isinstance(v, unicode):
+                v = v.encode('ascii','ignore')
+            if isinstance(v, str):
+                value_str += ", '{}'".format(v)
+            elif v is None or v == '':
+                value_str += ", {}".format('NULL')
+            else:
+                value_str += ", {}".format(v)
+        insert_command = 'INSERT INTO catapp ({}) VALUES ({}) RETURNING id;'.format(key_str, value_str)
+        print insert_command
+        cur.execute(insert_command)
+        id = cur.fetchone()[0]
+        print id
+        if self.connection is None:
+            con.commit()
+            con.close()
+        return id
+
+    def transfer(self, filename_sqlite):
+        from catappsqlite import CatappSQLite
+        with CatappSQLite(filename_sqlite) as db:
+            con_lite = db._connect()
+            cur_lite = con_lite.cursor()
+            n = db.get_last_id(cur_lite)
+            for id_lite in range(1, n+1):
+                row = db.read(id_lite)
+                if len(row) == 0:
+                    continue
+                values = row[0]
+                id = self.check(values[7])
+                if id is not None:
+                    print 'Allready in catapp db with row id = {}'.format(id)
+                else:
+                    id = self.write(values)
+                    print 'Written to catapp db row id = {}'.format(id)
+
+    
+    def check(self, reaction_energy):
+        con = self.connection or self._connect()
+        self._initialize(con)
+        cur = con.cursor()
+        statement = 'SELECT catapp.id FROM catapp WHERE catapp.reaction_energy={}'.format(reaction_energy)
+        #argument = [reaction_energy]
+        cur.execute(statement)
+        rows = cur.fetchall()
+        if len(rows) > 0:
+            id = rows[0][0]
+        else:
+            id = None
+        return id

@@ -62,8 +62,8 @@ for root, dirs, files in os.walk(user_base):
         publication_keys = {}
         try:
             pub_data = json.load(open(root + '/publication.txt', 'r'))
-
-            keys = ['journal', 'volume', 'number', 'pages', 'year']
+            if 'url' in pub_data.keys():
+                del pub_data['url']
             reference = json.dumps(pub_data)
             try:
                 doi = pub_data['doi']
@@ -85,7 +85,18 @@ for root, dirs, files in os.walk(user_base):
             print 'ERROR: insufficient publication info'
             year = 2017
             doi = None
-            reference = '{}({})'.format(user, year)
+            
+            pub_data = {'title': root.split('/')[-1],
+                        'authors': user,
+                        'journal': None,
+                        'volume': None,
+                        'number': None,
+                        'pages': None,
+                        'year': year,
+                        'publisher': None,
+                        'doi': None,
+                        }
+            reference = json.dumps(pub_data)
 
     if level == DFT_level:
         DFT_code = root.split('/')[-1]
@@ -226,8 +237,9 @@ for root, dirs, files in os.walk(user_base):
         if not facet_level == site_level:
             dirjoin = '_'.join(info for info in root.split('/'))
             sites = dirjoin[site_level + user_base_level:]
-
+            
     if level == final_level:
+        print 'FINAL LEVEL'
         reaction_energy = None
         activation_energy = None
         
@@ -360,6 +372,7 @@ for root, dirs, files in os.walk(user_base):
 
         # try: 
 
+        print traj_files
         reaction_energy, activation_energy = \
             get_reaction_energy(traj_files, prefactors_final, prefactors_TS)    
 

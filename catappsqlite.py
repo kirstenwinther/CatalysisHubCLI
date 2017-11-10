@@ -63,6 +63,14 @@ class CatappSQLite:
 
         self.initialized = True
 
+    def read(self, id):
+        con = self.connection or self._connect()
+        self._initialize(con)
+        cur = con.cursor()
+        cur.execute('SELECT * FROM \n catapp \n WHERE \n catapp.id={}'.format(id))
+        row = cur.fetchall()
+        return row
+        
     def write(self, values, data=None):
         con = self.connection or self._connect()
         self._initialize(con)
