@@ -12,7 +12,7 @@ import json
 import csv
 
 
-def check_traj(filename, strict=True, verbose=True):
+def check_traj(filename, strict=True, verbose=False):
     try:
         atoms = read(filename)
         if verbose:
@@ -24,8 +24,7 @@ def check_traj(filename, strict=True, verbose=True):
                 print 'Converting to new ase format!'
             atoms = read(filename)
         except:
-            if verbose:
-                print 'Could not read .traj file'
+            print 'Could not read .traj file'
             return False
     
     try:
