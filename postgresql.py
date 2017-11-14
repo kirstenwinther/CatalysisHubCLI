@@ -1,4 +1,4 @@
-import psycopg2
+ALimport psycopg2
 
 init_command = \
                 """CREATE TABLE catapp (
@@ -60,6 +60,15 @@ class CatappPostgreSQL:
         self.initialized = True
         return self
 
+    def status(self):
+        con = self.connection or self._connect()
+        self._initialize(con)
+        cur = con.cursor()
+        cur.execute("SELECT COUNT(*) from catapp;")
+        print cur.fetchall()
+        cur.execute("""SELECT reactants, products FROM catapp where reference""")
+        print len(cur.fetchall())
+ 
     def write(self, values):
         con = self.connection or self._connect()
         self._initialize(con)

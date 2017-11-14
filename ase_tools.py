@@ -32,8 +32,7 @@ def check_traj(filename, strict=True, verbose=True):
                 print 'Converting to new ase format!'
             atoms = read_ase(filename)
         except:
-            if verbose:
-                print 'Could not read .traj file'
+            print 'Could not read .traj file'
             return False
     
     try:

@@ -201,11 +201,10 @@ for root, dirs, files in os.walk(user_base):
                 print '{} file is not part of reaction, include as reference'.format(f)
                 ase_ids.update({chemical_composition_hill + 'gas': ase_id})
                 
-    #if level == metal_level:
-    #    up = 0
-
-
     if level == metal_level:
+        up = 0
+
+    if level == metal_level + up:
         metal = root.split('/')[-1]
         if metal_level == facet_level:
             if len(metal.split('_')) == 2:
@@ -214,10 +213,11 @@ for root, dirs, files in os.walk(user_base):
                 facet = None
         print '--------------- METAL: {} ---------------'.format(metal) 
         #if user == 'roling':
-        #    if metal == reaction[0].replace('*', ''):
-        #        up += 1
+        #    if metal == reaction['reactants'][0].replace('star', ''):
+        #        up = 1
+        #        continue
 
-    if level == facet_level: # + up:
+    if level == facet_level + up:
         folder_name = root.split('/')[-1]
         if not metal_level == facet_level:
             if not facet_level == site_level:
@@ -233,13 +233,13 @@ for root, dirs, files in os.walk(user_base):
             ase_facet = facetstr.format(*facet)
         print '--------------- FACET: {} ---------------'.format(facet) 
 
-    if level == site_level:
+    if level == site_level + up:
         if not facet_level == site_level:
             dirjoin = '_'.join(info for info in root.split('/'))
             sites = dirjoin[site_level + user_base_level:]
             
-    if level == final_level:
-        print 'FINAL LEVEL'
+    if level == final_level + up:
+
         reaction_energy = None
         activation_energy = None
         
@@ -372,11 +372,11 @@ for root, dirs, files in os.walk(user_base):
 
         # try: 
 
-        print traj_files
+
         reaction_energy, activation_energy = \
             get_reaction_energy(traj_files, prefactors_final, prefactors_TS)    
 
-        print reaction_energy
+
         #except:
         #    print 'ERROR: reaction energy failed: {}'.format(root)
         #    continue
