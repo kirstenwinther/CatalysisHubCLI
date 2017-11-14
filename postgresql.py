@@ -7,16 +7,16 @@ init_command = \
                 surface_composition text,
                 facet text,
                 sites text,
-                reactants json,
-                products json,
+                reactants jsonb,
+                products jsonb,
                 reaction_energy numeric,
                 activation_energy numeric,
                 dft_code text,
                 dft_functional text,
-                reference json,
+                reference jsonb,
                 doi text,
                 year smallint,
-                ase_ids json
+                ase_ids jsonb
                 );"""
 
 
