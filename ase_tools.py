@@ -12,9 +12,17 @@ import json
 import csv
 
 
+def read_ase(filename):
+    if isinstance(filename, str):
+        atoms = read(filename)
+    else:
+        atoms = filename
+    return atoms
+
+
 def check_traj(filename, strict=True, verbose=True):
     try:
-        atoms = read(filename)
+        atoms = read_ase(filename)
         if verbose:
             print 'traj file ok!'
     except:
@@ -22,7 +30,7 @@ def check_traj(filename, strict=True, verbose=True):
             convert(filename)
             if verbose:
                 print 'Converting to new ase format!'
-            atoms = read(filename)
+            atoms = read_ase(filename)
         except:
             if verbose:
                 print 'Could not read .traj file'
@@ -39,17 +47,14 @@ def check_traj(filename, strict=True, verbose=True):
 
 
 def get_reference(filename):
-    atoms = read(filename)
+    atoms = read_ase(filename)
     energy = atoms.get_potential_energy()
     name = atoms.get_chemical_formula()
     return {name: str(energy)}
 
 
 def get_traj_str(filename):
-    if isinstance(filename, str):
-        atoms = read(filename)
-    else:
-        atoms = filename
+    atoms = read_ase(filename)
     row = AtomsRow(atoms)
     dct = {}
     for key in row.__dict__:
@@ -68,34 +73,34 @@ def get_traj_str(filename):
 
 
 def get_chemical_formula(filename, mode='metal'):
-    atoms = read(filename)
+    atoms = read_ase(filename)
     return atoms.get_chemical_formula(mode=mode)
 
 
 def get_number_of_atoms(filename):
-    atoms = read(filename)
+    atoms = read_ase(filename)
     return atoms.get_number_of_atoms()
 
 
 def get_energy_diff(filename, filename_ref):
-    atoms = read(filename)
-    reference = read(filename_ref)
+    atoms = read_ase(filename)
+    reference = read_ase(filename_ref)
     return atoms.get_potential_energy() - reference.get_potential_energy()
 
 
 def get_energies(filenames):
     if len(filenames) == 1:
-        atoms = read(filenames[0])
+        atoms = read_ase(filenames[0])
         return atoms.get_potential_energy()
     elif len(filenames) > 1:
         energies = []
         for filename in filenames:
-            atoms = read(filename)
+            atoms = read_ase(filename)
             energies.append(atoms.get_potential_energy())
         return energies
 
 def get_energy(filename):
-    atoms = read(filename)
+    atoms = read_ase(filename)
     return atoms.get_potential_energy()
 
 
@@ -223,7 +228,7 @@ def get_layers(atoms):
 
 
 def get_surface_composition(filename):
-    atoms = read(filename)
+    atoms = read_ase(filename)
 
     if len(np.unique(atoms.get_atomic_numbers())) == 1:
         return atoms.get_chemical_symbols()[0]
@@ -267,7 +272,7 @@ def tag_atoms(atoms, types=None):
 
 
 def get_n_layers(filename):
-    atoms = read(filename)
+    atoms = read_ase(filename)
     layer_i = get_layers(atoms)
     n = np.max(layer_i)
     return n
@@ -287,7 +292,7 @@ def get_layers(atoms):
 
 
 def get_bulk_composition(filename):
-    atoms = read(filename)
+    atoms = read_ase(filename)
     
     if len(np.unique(atoms.get_atomic_numbers())) == 1:
         return atoms.get_chemical_symbols()[0]
@@ -316,13 +321,14 @@ def get_bulk_composition(filename):
     return bulk_composition
 
 
-def check_in_ase(filename, ase_db):
+def check_in_ase(filename, ase_db, energy=None):
     """ Check if entry is allready in ASE db
     """
 
     db_ase = ase.db.connect(ase_db)
-    atoms = read(filename)
-    energy = atoms.get_potential_energy()
+    atoms = read_ase(filename)
+    if energy is None:
+        energy = atoms.get_potential_energy()
     formula = atoms.get_chemical_formula(mode='metal')
     rows = db_ase.select(energy=energy)
     n = 0
@@ -342,7 +348,8 @@ def check_in_ase(filename, ase_db):
 
 def write_ase(filename, db_file, **key_value_pairs):
     """ Connect to ASE db"""
-    atoms = read(filename)
+    atoms = read_ase(filename)
+
     atoms = tag_atoms(atoms)
     db_ase = ase.db.connect(db_file)
     id = db_ase.write(atoms, **key_value_pairs)
