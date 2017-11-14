@@ -1,4 +1,5 @@
 import psycopg2
+import os
 
 try:  #sherlock 1 or 2
     sherlock = os.environ['SHERLOCK']
@@ -10,7 +11,7 @@ except:  # SUNCAT
     catbase = '/nfs/slac/g/suncatfs/data_catapp/'
 
 data_base = catbase + 'winther/databases/'
-
+print data_base
 
 from postgresql import CatappPostgreSQL
 
