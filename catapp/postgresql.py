@@ -1,4 +1,4 @@
-ALimport psycopg2
+import psycopg2
 
 init_command = \
                 """CREATE TABLE catapp (
