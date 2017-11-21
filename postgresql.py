@@ -1,4 +1,4 @@
-ALimport psycopg2
+import psycopg2
 
 init_command = \
                 """CREATE TABLE catapp (
@@ -13,7 +13,7 @@ init_command = \
                 activation_energy numeric,
                 dft_code text,
                 dft_functional text,
-                reference jsonb,
+                publication jsonb,
                 doi text,
                 year smallint,
                 ase_ids jsonb
@@ -27,9 +27,11 @@ class CatappPostgreSQL:
         self.id = None
 
     def _connect(self):
+        import os
+        password = os.environ['DB_PASSWORD']
         con = psycopg2.connect(host="catappdatabase.cjlis1fysyzx.us-west-1.rds.amazonaws.com", 
                                user='catappuser',
-                               password='catappdb',
+                               password=password,
                                port=5432,
                                database='catappdatabase')
         
@@ -66,8 +68,8 @@ class CatappPostgreSQL:
         cur = con.cursor()
         cur.execute("SELECT COUNT(*) from catapp;")
         print cur.fetchall()
-        cur.execute("""SELECT reactants, products FROM catapp where reference""")
-        print len(cur.fetchall())
+        #cur.execute("""SELECT reactants, products FROM catapp where reference""")
+        #print len(cur.fetchall())
  
     def write(self, values):
         con = self.connection or self._connect()
@@ -79,7 +81,7 @@ class CatappPostgreSQL:
         #else:
         #    id = self.id
 
-        key_str = 'chemical_composition, surface_composition, facet, sites, reactants, products, reaction_energy, activation_energy, dft_code, dft_functional, reference, doi, year, ase_ids'
+        key_str = 'chemical_composition, surface_composition, facet, sites, reactants, products, reaction_energy, activation_energy, dft_code, dft_functional, publication, doi, year, ase_ids'
         value_str = "'{}'".format(values[1])
         for v in values[2:]:
             if isinstance(v, unicode):

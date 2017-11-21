@@ -16,7 +16,7 @@ init_command = \
                 activation_energy real,
                 dft_code text,
                 dft_functional text,
-                reference text,
+                publication text,
                 doi text,
                 year int,
                 ase_ids text
@@ -91,7 +91,7 @@ class CatappSQLite:
                   # str(values['gas_references']),
                   values['dft_code'],
                   values['dft_functional'],
-                  values['reference'],
+                  values['publication'],
                   values['doi'],
                   int(values['year']),
                   json.dumps(values['ase_ids'])
