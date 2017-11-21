@@ -235,7 +235,51 @@ def db_status():
 @click.option('--create-template', is_flag=True, help="Create an empty template file.")
 @click.option('--custom-base', )
 def make_folders_template(create_template, template, custom_base, ):
-    """A create a basic folder tree to put in DFT calculcations."""
+    """A create a basic folder tree to put in DFT calculcations.
+
+    Dear all
+
+    Use this script to make the right structure for your folders.
+    Folders will be created automatically when you run the script with python.
+    Start by copying the script to a folder in your username,
+    and assign the right information to the variables below.
+
+    You can change the parameters and run the script several times if you,
+    for example, are using different functionals or are doing different reactions
+    on different surfaces.
+
+
+    Include the phase if necessary:
+
+    'star' for empty site or adsorbed phase. Only necessary to put 'star' if
+    gas phase species are also involved.
+    'gas' if in gas phase
+
+    Remember to include the adsorption energy of reaction intermediates, taking
+    gas phase molecules as references (preferably H20, H2, CH4, CO, NH3).
+    For example, we can write the desorption of CH2 as:
+    CH2* -> CH4(g) - H2(g) + *
+    Here you would have to write 'CH4gas-H2gas' as "products_A" entry.
+
+    See examples:
+
+    reactions = [
+        {'reactants': ['CH2star'], 'products': ['CH4gas', '-H2gas', 'star']},
+        {'reactants': ['CH3star'], 'products': ['CH4gas', '-0.5H2gas', 'star']}
+        ]
+
+
+
+    Reaction info is now a list of dictionaries. 
+    A new dictionary is required for each reaction, and should include two lists,
+    'reactants' and 'products'. Remember to include a minus sign in the name when
+    relevant.
+
+# ---------------surface info---------------------
+
+    facets # If complicated structure: use term you would use in publication
+    sites # put sites or additional info is necessary. Use '_' in the case of different adsorbates.
+    """
     import make_folders_template
     import json
     import os
