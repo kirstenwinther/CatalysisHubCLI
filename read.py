@@ -325,7 +325,7 @@ for root, dirs, files in os.walk(user_base):
                 continue
             elif i == empty_i:
                 #found = True
-                ase_ids.update({'star': ase_id})
+                ase_ids.update({'empty': ase_id})
 
             for key, mollist in reaction_atoms.iteritems():
                 if found:
@@ -392,19 +392,27 @@ for root, dirs, files in os.walk(user_base):
                      'activation energy is wrong: {} eV: {}'.format(activation_energy, root),
                      debug)
 
-        reactants = {}
+        reaction_info = {'reactants': {}, 
+                         'products': {}}
         products = {}
-        for i, r in enumerate(reaction_atoms['reactants']):
-            reactants[r] = [states['reactants'][i], prefactors['reactants'][i]]
-            products[r] = [states['products'][i], prefactors['products'][i]]
+        for key in ['reactants', 'products']:
+            for i, r in enumerate(reaction[key]):
+                r = r.replace('gas', '', 1).replace('star', '', 1)
+                if len(r)>0:
+                    if not r[0].isalpha():
+                        h = 0
+                        while not r[h].isalpha():
+                            h += 1
+                        r = r[h:]
+                reaction_info[key].update({r: [states[key][i], prefactors[key][i]]})
 
 #       print chemical_composition, reaction_energy, activation_energy
         key_value_pairs_catapp = {'chemical_composition': chemical_composition,
                                   'surface_composition': surface_composition,
                                   'facet': facet,
                                   'sites': sites,
-                                  'reactants': reactants,
-                                  'products': products, 
+                                  'reactants': reaction_info['reactants'],
+                                  'products': reaction_info['products'], 
                                   'reaction_energy': reaction_energy,
                                   'activation_energy': activation_energy,
                                   'dft_code': DFT_code,
