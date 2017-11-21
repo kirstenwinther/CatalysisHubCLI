@@ -333,6 +333,9 @@ def make_folders_template(create_template, template, custom_base, ):
                 dft_code = template_data['DFT_code']
                 dft_functional = template_data['DFT_functional']
                 reactions = template_data['reactions']
+                surfaces = template_data['surfaces']
+                facets = template_data['facets']
+                sites = template_data['sites']
 
     make_folders_template.main(
         title=title,
@@ -350,6 +353,9 @@ def make_folders_template(create_template, template, custom_base, ):
         reactions=eval(reactions) if isinstance(
             reactions, six.string_types) else reactions,
         custom_base=custom_base,
+        surfaces=surfaces,
+        facets=facets,
+        sites=sites,
     )
 
 
