@@ -10,4 +10,6 @@ setup(name='catapp',
       entry_points='''
             [console_scripts]
             catapp=catapp:cli
-        ''')
+        ''',
+      long_description=file('README.md').read(),
+    )
