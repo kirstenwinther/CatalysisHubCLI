@@ -367,7 +367,7 @@ def postgresql():
 @cli.command()
 def psql_server_connect():
     """Test connection to PostreSQL server."""
-    pass
+    import psql_server_connect
 
 
 @cli.command()
