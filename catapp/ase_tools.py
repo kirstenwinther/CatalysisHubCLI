@@ -105,6 +105,21 @@ def get_energy(filename):
     return atoms.get_potential_energy()
 
 
+def get_atomic_numbers(filename):
+    atoms = read_ase(filename)
+    return list(atoms.get_atomic_numbers())
+
+
+def get_formula_from_numbers(numbers):
+    formula = Atoms(numbers).get_chemical_formula(mode='all')
+    return formula
+
+
+def get_numbers_from_formula(formula):
+    atoms = Atoms(formula)
+    return get_atomic_numbers(atoms)
+    
+
 def clear_state(name):
     name = name.replace('*', '').replace('(g)', '')
     name = name.replace('star', '').replace('gas', '')
@@ -112,6 +127,8 @@ def clear_state(name):
 
 
 def clear_prefactor(molecule):
+    if molecule == '':
+        return molecule
     if not molecule[0].isalpha():
         i = 0
         while not molecule[i].isalpha():
@@ -405,7 +422,44 @@ def get_reaction_atoms(reaction):
             state = get_state(molecule)
             states[key].append(state)
 
-    return reaction_atoms, prefactors, states
+    import copy
+    prefactors_TS = copy.deepcopy(prefactors)
+    # Empty slab balance
+
+    n_star = {'reactants': 0,
+              'products': 0}
+
+    for key, statelist in states.iteritems():
+        for s in statelist:
+            if s == 'star':
+                n_star[key] += 1
+
+    n_r = n_star['reactants']
+    n_p = n_star['products']
+
+    diff = n_p - n_r
+
+    if diff > 0:
+        n_r += diff
+        reaction['reactants'].append('star')
+        prefactors['reactants'].append(diff)
+        prefactors_TS['reactants'].append(1)
+        states['reactants'].append('star')
+        reaction_atoms['reactants'].append('')
+
+    elif diff < 0:
+        n_p += -diff
+        reaction['products'].append('star')
+        prefactors['products'].append(-diff)
+        states['products'].append('star')
+        reaction_atoms['products'].append('')
+
+    if n_r > 1:
+        if len([s for s in states['reactants'] if s =='star']) > 1:
+            prefactors_TS['reactants'][-1] = 0
+
+
+    return reaction_atoms, prefactors, prefactors_TS, states
 
 
 def debug_assert(expression, message, debug=False):

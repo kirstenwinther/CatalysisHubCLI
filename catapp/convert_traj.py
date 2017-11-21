@@ -7,11 +7,11 @@ assert StrictVersion(ase.__version__) >= StrictVersion('3.10.0')
 try:  # sherlock 1 or 2
     sherlock = os.environ['SHERLOCK']
     if sherlock == '1':
-        catbase = '/home/winther/data_catapp/winther/scripts'
+        catbase = '/home/winther/data_catapp/winther/scripts/catapp'
     elif sherlock == '2':
-        catbase = '/home/users/winther/data_catapp/winther/scripts'
+        catbase = '/home/users/winther/data_catapp/winther/scripts/catapp'
 except:  # SUNCAT
-    catbase = '/nfs/slac/g/suncatfs/data_catapp/winther/scripts'
+    catbase = '/nfs/slac/g/suncatfs/data_catapp/winther/scripts/catapp'
 
 path.append(catbase)
 from ase_tools import check_traj

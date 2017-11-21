@@ -22,10 +22,16 @@ except:  # SUNCAT
 debug = False
 strict = False
 
-data_base = catbase + 'winther/databases/'
-ase_db = data_base + 'atoms.db'
+if os.environ['USER'] == 'winther':
+    data_base = catbase + 'winther/databases/'
+    ase_db = data_base + 'atoms.db'
+    user = argv[1]
 
-user = argv[1]
+else:
+    user = os.environ['USER']
+    data_base = catbase + user + '/'
+    ase_db = data_base + 'atoms.db'
+
 user_base = catbase + user
 user_base_level = len(user_base.split("/"))
 
@@ -53,11 +59,12 @@ if site_level is None or site_level == "None":
     sites = ''
 
 for root, dirs, files in os.walk(user_base):
-    for omit_folder in omit_folders:
+    for omit_folder in omit_folders:  # user specified omit_folder
         if omit_folder in dirs:
             dirs.remove(omit_folder)
-    level = len(root.split("/")) - user_base_level
-    if level == pub_level:
+    level = len(root.split("/")) - user_base_level  
+
+    if level == pub_level:  # Read publication info
         # assert 'publication.txt' in files
         publication_keys = {}
         try:
@@ -113,46 +120,13 @@ for root, dirs, files in os.walk(user_base):
             dirs = []
             continue
 
-        print '-------------- REACTION:  {} --> {} -----------------'.format('+'.join(reaction['reactants']), '+'.join(reaction['products']))
+        print '-------------- REACTION:  {} --> {} -----------------'\
+            .format('+'.join(reaction['reactants']), '+'.join(reaction['products']))
 
-        reaction_atoms, prefactors, states = get_reaction_atoms(reaction)
-
-        prefactors_TS = copy.deepcopy(prefactors)
+        reaction_atoms, prefactors, prefactors_TS, states = get_reaction_atoms(reaction)
         
-        # empty slab balance
-        
-        n_star = {'reactants': 0,
-                  'products': 0}
-
-        for key, statelist in states.iteritems():
-            for s in statelist:
-                if s == 'star':
-                    n_star[key] += 1
-
-        n_r = n_star['reactants']
-        n_p = n_star['products']
-
-        diff = n_p - n_r
-
-        if diff > 0:
-            n_r += diff
-            reaction['reactants'].append('star')
-            prefactors['reactants'].append(diff)
-            prefactors_TS['reactants'].append(1)
-            states['reactants'].append('star')
-            reaction_atoms['reactants'].append('')
-
-        elif diff < 0:
-            n_p += -diff
-            reaction['products'].append('star')
-            prefactors['products'].append(-diff)
-            states['products'].append('star')
-            reaction_atoms['products'].append('')
-
-        if n_r > 1:
-            if len([s for s in states['reactants'] if s =='star']) > 1:
-                prefactors_TS['reactants'][-1] = 0
-        
+                
+        # Create empty dictionaries
         r_empty = ['' for n in range(len(reaction['reactants']))]
         p_empty = ['' for n in range(len(reaction['products']))]
         traj_files = {'reactants': r_empty[:],
@@ -160,11 +134,11 @@ for root, dirs, files in os.walk(user_base):
 
         chemical_compositions = {'reactants': r_empty[:], 
                                  'products': p_empty[:]}
-        traj_gas = [f for f in files if f.endswith('.traj')]
 
         ase_ids = {}
         reference_ase_ids = {}
-        #reference_ids = {}
+
+        traj_gas = [f for f in files if f.endswith('.traj')]
         
         for f in traj_gas:
             ase_id = None
@@ -194,7 +168,7 @@ for root, dirs, files in os.walk(user_base):
                         traj_files[key][i] = traj
                         chemical_compositions[key][i] = \
                             chemical_composition_hill
-                        ase_ids.update({clear_prefactor(reaction[key][i]): \
+                        ase_ids.update({clear_prefactor(clear_state(reaction[key][i])): \
                                             ase_id})
 
             if found is False:
@@ -239,16 +213,13 @@ for root, dirs, files in os.walk(user_base):
                 dirjoin = '_'.join(info for info in root.split('/'))
                 sites = dirjoin[site_level + user_base_level:]
             
-    if level == final_level + up:
-
-        reaction_energy = None
-        activation_energy = None
-        
+    if level == final_level + up:  # this is where the fun happens!
         traj_slabs = [f for f in files if f.endswith('.traj') \
                           and 'gas' not in f]
         if traj_slabs == []:
             continue
-        assert len(traj_slabs) > 1, 'Need at least two files!'
+        assert len(traj_slabs) > 1, 'Need at least two files in {}!'.format(root)
+
         n_atoms = np.array([])
         empty_i = None
         ts_i = None
@@ -275,6 +246,7 @@ for root, dirs, files in os.walk(user_base):
         if empty_i is None:
             empty_i = np.argmin(n_atoms)
         traj_empty = root + '/' + traj_slabs[empty_i]
+        empty_atn = get_atomic_numbers(traj_empty)
 
         # Identify TS
         if ts_i is not None:
@@ -289,35 +261,21 @@ for root, dirs, files in os.walk(user_base):
             TS_id = None
             activation_energy = None
 
-        #stop
         prefactor_scale = copy.deepcopy(prefactors)
         for key1, values in prefactor_scale.iteritems():
-                    prefactor_scale[key1] = [1 for v in values]                
+            prefactor_scale[key1] = [1 for v in values]                
+
         for i, f in enumerate(traj_slabs):
             ase_id = None
             found = False
-            res = chemical_composition_slabs[i]
-            for char in chemical_composition_slabs[empty_i]:
-                res = res.replace(char, '', 1)
-
-            res = ''.join(sorted(res))
-
             traj = '{}/{}'.format(root, f)
+
+            res_atn = get_atomic_numbers(traj)
+            for atn in empty_atn:
+                res_atn.remove(atn)
+            res_atn = sorted(res_atn)  # residual atomic numbers 
+
             chemical_composition_metal = get_chemical_formula(traj)
-
-            ase_id = check_in_ase(traj, ase_db)
-
-            if ase_id is None:
-
-                key_value_pairs = publication_keys.copy()
-                key_value_pairs.update({'name': get_chemical_formula(traj_empty),
-                                        'species': res,
-                                        'epot': get_energies([traj]),
-                                        'site': sites,
-                                        'facet': ase_facet,
-                                        'layers': get_n_layers(traj)})
-                ase_id = write_ase(traj, ase_db, **key_value_pairs)
-
             
             if i == ts_i:
                 found = True
@@ -327,24 +285,59 @@ for root, dirs, files in os.walk(user_base):
                 #found = True
                 ase_ids.update({'empty': ase_id})
 
+            supercell_factor = 1
             for key, mollist in reaction_atoms.iteritems():
                 if found:
                     continue
                 for n, molecule in enumerate(mollist):
                     if found:
                         continue
+                    molecule_atn = get_numbers_from_formula(molecule)
                     for k in range(1, 5):
                         if found:
                             continue
-                        molecule = ''.join(sorted(molecule * k))
-                        if res == molecule and states[key][n] == 'star':
+                        mol = ''.join(sorted(molecule * k))
+                        mol_atn = sorted(molecule_atn * k)
+
+                        if res_atn == mol_atn and states[key][n] == 'star':
                             found = True
+                        elif len(res_atn) >= len(empty_atn):
+                            res_slab_atn = res_atn[:]
+                            for atn in mol_atn:
+                                if atn in res_slab_atn:
+                                    res_slab_atn.remove(atn)
+
+                            try:
+                                supercell_factor = int(len(res_slab_atn) / len(empty_atn))
+                                for atn in empty_atn * supercell_factor:
+                                    if atn in res_slab_atn:
+                                        res_slab_atn.remove(atn)
+                            except:
+                                continue
+
+                            if len(res_slab_atn) == 0:
+                                found =True
+
+                        if found:
                             n_ads = k
                             ads_i = n
                             ads_key = key
                             traj_files[key][n] = traj
                             chemical_compositions[key][n] = chemical_composition_metal
-                            ase_ids.update({clear_prefactor(reaction[key][n]): ase_id})
+                            ase_id = check_in_ase(traj, ase_db)
+                            species = clear_state(clear_prefactor(reaction[key][n]))
+                            if ase_id is None:
+                                key_value_pairs = publication_keys.copy()
+                                key_value_pairs.update({'name': get_chemical_formula(traj_empty),
+                                                        'species': species,
+                                                        'epot': get_energies([traj]),
+                                                        'site': sites,
+                                                        'facet': ase_facet,
+                                                        'layers': get_n_layers(traj)})
+                                ase_id = write_ase(traj, ase_db, **key_value_pairs)
+
+                            ase_ids.update({species: ase_id})
+
       
 
             if n_ads > 1:
@@ -353,6 +346,11 @@ for root, dirs, files in os.walk(user_base):
                         if states[key1][mol_i] == 'gas':
                             prefactor_scale[key1][mol_i] = n_ads
 
+            if supercell_factor > 1:
+                for key2, values in prefactor_scale.iteritems():
+                    for mol_i in range(len(values)):
+                        if reaction[key2][mol_i] =='star':
+                            prefactor_scale[key2][mol_i] *= supercell_factor + 1
 
             if found is False:
                 print '{} file is not part of reaction, include as reference'.format(f)
@@ -371,12 +369,12 @@ for root, dirs, files in os.walk(user_base):
             for i, v in enumerate(prefactors[key]):
                 prefactors_final[key][i] = prefactors[key][i] * prefactor_scale[key][i] 
 
+
+        reaction_energy = None
+        activation_energy = None        
         # try: 
-
-
         reaction_energy, activation_energy = \
             get_reaction_energy(traj_files, prefactors_final, prefactors_TS)    
-
 
         #except:
         #    print 'ERROR: reaction energy failed: {}'.format(root)
@@ -397,14 +395,9 @@ for root, dirs, files in os.walk(user_base):
         products = {}
         for key in ['reactants', 'products']:
             for i, r in enumerate(reaction[key]):
-                r = r.replace('gas', '', 1).replace('star', '', 1)
-                if len(r)>0:
-                    if not r[0].isalpha():
-                        h = 0
-                        while not r[h].isalpha():
-                            h += 1
-                        r = r[h:]
-                reaction_info[key].update({r: [states[key][i], prefactors[key][i]]})
+                r = clear_state(r)
+                r = clear_prefactor(r)
+                reaction_info[key].update({r: [states[key][i], prefactors_final[key][i]]})
 
 #       print chemical_composition, reaction_energy, activation_energy
         key_value_pairs_catapp = {'chemical_composition': chemical_composition,
