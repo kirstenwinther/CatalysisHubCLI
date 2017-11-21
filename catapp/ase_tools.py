@@ -10,10 +10,11 @@ from ase.io.trajectory import convert
 from ase.visualize import view
 import json
 import csv
+import six
 
 
 def read_ase(filename):
-    if isinstance(filename, str):
+    if isinstance(filename, six.string_types):
         atoms = read(filename)
     else:
         atoms = filename
@@ -34,7 +35,7 @@ def check_traj(filename, strict=True, verbose=True):
         except:
             print 'Could not read .traj file'
             return False
-    
+
     try:
         atoms.get_potential_energy()
     except:
@@ -98,6 +99,7 @@ def get_energies(filenames):
             energies.append(atoms.get_potential_energy())
         return energies
 
+
 def get_energy(filename):
     atoms = read_ase(filename)
     return atoms.get_potential_energy()
@@ -107,6 +109,7 @@ def clear_state(name):
     name = name.replace('*', '').replace('(g)', '')
     name = name.replace('star', '').replace('gas', '')
     return name
+
 
 def clear_prefactor(molecule):
     if not molecule[0].isalpha():
@@ -168,7 +171,6 @@ def get_reaction_energy(traj_files, prefactors, prefactors_TS):
     for key, trajlist in traj_files.iteritems():
         for i, traj in enumerate(trajlist):
             energies[key][i] = prefactors[key][i] * get_energy(traj)
-    
 
     energy_reactants = np.sum(energies['reactants'])
     energy_products = np.sum(energies['products'])
@@ -177,13 +179,15 @@ def get_reaction_energy(traj_files, prefactors, prefactors_TS):
 
     if 'TS' in traj_files.keys():
         for i, traj in enumerate(traj_files['reactants']):
-            energies['reactants'][i] = prefactors_TS['reactants'][i] * get_energy(traj)
+            energies['reactants'][i] = prefactors_TS[
+                'reactants'][i] * get_energy(traj)
         energy_reactants = np.sum(energies['reactants'])
         energy_TS = energies['TS'][0]
         activation_energy = energy_TS - energy_reactants
     else:
         activation_energy = None
     return reaction_energy, activation_energy
+
 
 def tag_atoms(atoms, types=None):
     non_metals = ['H', 'He', 'B', 'C', 'N', 'O', 'F', 'Ne',
@@ -292,7 +296,7 @@ def get_layers(atoms):
 
 def get_bulk_composition(filename):
     atoms = read_ase(filename)
-    
+
     if len(np.unique(atoms.get_atomic_numbers())) == 1:
         return atoms.get_chemical_symbols()[0]
 
@@ -359,14 +363,14 @@ def write_ase(filename, db_file, **key_value_pairs):
 
 def get_reaction_from_folder(folder_name):
     reaction = {}
-    if '__' in folder_name:  # Complicated reaction        
+    if '__' in folder_name:  # Complicated reaction
         if '-' in folder_name and '_-' not in folder_name:
             # intermediate syntax
-            a,b = folder_name.split('-')
+            a, b = folder_name.split('-')
             folder_name = a + '_-' + b
-        
+
         reaction.update({'reactants': folder_name.split('__')[0].split('_'),
-                        'products': folder_name.split('__')[1].split('_')})
+                         'products': folder_name.split('__')[1].split('_')})
 
     elif '_' in folder_name:  # Standard format
         AB, A, B = folder_name.split('_')
@@ -379,8 +383,9 @@ def get_reaction_from_folder(folder_name):
         reaction.update({'reactants': [AB],
                          'products': products})
     else:
-        raise AssertionError, 'problem with folder {}'.format(foldername) 
+        raise AssertionError, 'problem with folder {}'.format(foldername)
     return reaction
+
 
 def get_reaction_atoms(reaction):
     reaction_atoms = {'reactants': [],
@@ -392,7 +397,6 @@ def get_reaction_atoms(reaction):
     states = {'reactants': [],
               'products': []}
 
-
     for key, mollist in reaction.iteritems():
         for molecule in mollist:
             atoms, prefactor = get_atoms(molecule)
@@ -403,6 +407,7 @@ def get_reaction_atoms(reaction):
 
     return reaction_atoms, prefactors, states
 
+
 def debug_assert(expression, message, debug=False):
     if debug:
         try:
@@ -410,7 +415,6 @@ def debug_assert(expression, message, debug=False):
         except AssertionError as e:
             print(e)
     else:
-         assert expression, message
+        assert expression, message
 
-#def handle_gas_species():
-    
+# def handle_gas_species():
