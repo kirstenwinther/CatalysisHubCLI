@@ -10,3 +10,7 @@ MANIFEST
 # emacs backup files
 *~
 
+# virtualenv files
+bin/
+include/
+lib/
