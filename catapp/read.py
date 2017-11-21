@@ -233,10 +233,11 @@ for root, dirs, files in os.walk(user_base):
             ase_facet = facetstr.format(*facet)
         print '--------------- FACET: {} ---------------'.format(facet) 
 
-    if level == site_level + up:
-        if not facet_level == site_level:
-            dirjoin = '_'.join(info for info in root.split('/'))
-            sites = dirjoin[site_level + user_base_level:]
+    if site_level is not None and site_level != 'None':
+        if level == int(site_level) + up:
+            if not facet_level == site_level:
+                dirjoin = '_'.join(info for info in root.split('/'))
+                sites = dirjoin[site_level + user_base_level:]
             
     if level == final_level + up:
 
@@ -391,19 +392,24 @@ for root, dirs, files in os.walk(user_base):
                      'activation energy is wrong: {} eV: {}'.format(activation_energy, root),
                      debug)
 
-        
+        reactants = {}
+        products = {}
+        for i, r in enumerate(reaction_atoms['reactants']):
+            reactants[r] = [states['reactants'][i], prefactors['reactants'][i]]
+            products[r] = [states['products'][i], prefactors['products'][i]]
+
 #       print chemical_composition, reaction_energy, activation_energy
         key_value_pairs_catapp = {'chemical_composition': chemical_composition,
                                   'surface_composition': surface_composition,
                                   'facet': facet,
                                   'sites': sites,
-                                  'reactants': reaction['reactants'],
-                                  'products': reaction['products'],
+                                  'reactants': reactants,
+                                  'products': products, 
                                   'reaction_energy': reaction_energy,
                                   'activation_energy': activation_energy,
                                   'dft_code': DFT_code,
                                   'dft_functional': DFT_functional,
-                                  'reference': reference,
+                                  'publication': reference,
                                   'doi': doi,
                                   'year': year,
                                   'ase_ids': ase_ids,
