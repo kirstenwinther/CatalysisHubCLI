@@ -1,0 +1,16 @@
+# Bit compiled files
+*.pyc
+__pycache__
+
+tags
+dist
+MANIFEST
+/build
+
+# emacs backup files
+*~
+
+# virtualenv files
+bin/
+include/
+lib/
