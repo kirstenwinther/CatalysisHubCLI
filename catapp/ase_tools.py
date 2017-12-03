@@ -361,9 +361,9 @@ def check_in_ase(filename, ase_db, energy=None):
         print '{} already in ASE database'.format(formula)
         id = ids[0]
         unique_id = db_ase.get(id)['unique_id']
-        return unique_id
+        return id, unique_id
     else:
-        return None
+        return None, None
 
 
 def write_ase(filename, db_file, **key_value_pairs):
@@ -377,6 +377,12 @@ def write_ase(filename, db_file, **key_value_pairs):
     unique_id = db_ase.get(id)['unique_id']
     return unique_id
 
+def update_ase(db_file, id,  **key_value_pairs):
+    """ Connect to ASE db"""
+    db_ase = ase.db.connect(db_file)
+    count = db_ase.update(id, **key_value_pairs)
+    print 'Updating {} key value pairs in ASE db row id = {}'.format(count, id)
+    return
 
 def get_reaction_from_folder(folder_name):
     reaction = {}
@@ -401,6 +407,11 @@ def get_reaction_from_folder(folder_name):
                          'products': products})
     else:
         raise AssertionError, 'problem with folder {}'.format(foldername)
+    
+    for key, mollist in reaction.iteritems():
+        for n, mol in enumerate(mollist):
+            if 'gas' not in mol and 'star' not in mol:
+                reaction[key][n] = mol + 'star'
     return reaction
 
 
