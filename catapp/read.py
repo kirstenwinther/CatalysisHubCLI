@@ -140,6 +140,7 @@ for root, dirs, files in os.walk(user_base):
 
         traj_gas = [f for f in files if f.endswith('.traj')]
         
+        key_value_pairs = copy.deepcopy(publication_keys)
         for f in traj_gas:
             ase_id = None
             found = False
@@ -149,14 +150,13 @@ for root, dirs, files in os.walk(user_base):
             chemical_composition = \
                 ''.join(sorted(get_chemical_formula(traj, mode='all')))
             chemical_composition_hill = get_chemical_formula(traj, mode='hill')
+            
+            energy = get_energies([traj])
+            key_value_pairs.update({"name": chemical_composition_hill,
+                                    'state': 'gas',
+                                    'epot': energy})
 
-            ase_id = check_in_ase(traj, ase_db)
-            if ase_id is None:  # write to ASE db
-                energy = get_energies([traj])
-                key_value_pairs = publication_keys.copy()
-                key_value_pairs.update({"name": chemical_composition_hill,
-                                        'epot': energy})
-                ase_id = write_ase(traj, ase_db,**key_value_pairs)
+            id, ase_id = check_in_ase(traj, ase_db)
 
             for key, mollist in reaction_atoms.iteritems():
                 for i, molecule in enumerate(mollist):
@@ -168,8 +168,13 @@ for root, dirs, files in os.walk(user_base):
                         traj_files[key][i] = traj
                         chemical_compositions[key][i] = \
                             chemical_composition_hill
-                        ase_ids.update({clear_prefactor(clear_state(reaction[key][i])): \
-                                            ase_id})
+                        species = clear_prefactor(reaction[key][i])
+                        key_value_pairs.update({'species': clear_state(species)})
+                        if ase_id is None:
+                            ase_id = write_ase(traj, ase_db, **key_value_pairs)
+                        else:
+                            update_ase(ase_db, id, **key_value_pairs)
+                        ase_ids.update({species: ase_id})
 
             if found is False:
                 print '{} file is not part of reaction, include as reference'.format(f)
@@ -264,28 +269,51 @@ for root, dirs, files in os.walk(user_base):
         prefactor_scale = copy.deepcopy(prefactors)
         for key1, values in prefactor_scale.iteritems():
             prefactor_scale[key1] = [1 for v in values]                
+            
+        #prefactor_scale_ads = copy.deepcopy(prefactor_scale)
+
+        key_value_pairs = copy.deepcopy(publication_keys)
+        key_value_pairs.update({'name': get_chemical_formula(traj_empty),
+                                'site': sites,
+                                'facet': ase_facet,
+                                'layers': get_n_layers(traj_empty),
+                                'state': 'star'})
 
         for i, f in enumerate(traj_slabs):
-            ase_id = None
+            id, ase_id = check_in_ase(traj, ase_db)
             found = False
             traj = '{}/{}'.format(root, f)
+            key_value_pairs.update({'epot': get_energies([traj])})
+            chemical_composition_metal = get_chemical_formula(traj)
 
+            if i == ts_i:                
+                found = True
+                if ase_id is None:
+                    key_value_pairs.update({'species': 'TS'})
+                    ase_id = write_ase(traj, ase_db, **key_value_pairs)
+                ase_ids.update({'TSstar': ase_id})
+                continue
+
+            elif i == empty_i:
+                found = True
+                for key, mollist in reaction_atoms.iteritems():
+                    if '' in mollist:
+                        n = mollist.index('')
+                        traj_files[key][n] = traj
+                
+                if ase_id is None:
+                    key_value_pairs.update({'species': ''})
+                    ase_id = write_ase(traj, ase_db, **key_value_pairs)
+                ase_ids.update({'star': ase_id})
+                continue
+            
             res_atn = get_atomic_numbers(traj)
             for atn in empty_atn:
                 res_atn.remove(atn)
             res_atn = sorted(res_atn)  # residual atomic numbers 
 
-            chemical_composition_metal = get_chemical_formula(traj)
-            
-            if i == ts_i:
-                found = True
-                ase_ids.update({'TS': ase_id})
-                continue
-            elif i == empty_i:
-                #found = True
-                ase_ids.update({'empty': ase_id})
-
             supercell_factor = 1
+            n_ads = 1
             for key, mollist in reaction_atoms.iteritems():
                 if found:
                     continue
@@ -296,9 +324,7 @@ for root, dirs, files in os.walk(user_base):
                     for k in range(1, 5):
                         if found:
                             continue
-                        mol = ''.join(sorted(molecule * k))
                         mol_atn = sorted(molecule_atn * k)
-
                         if res_atn == mol_atn and states[key][n] == 'star':
                             found = True
                         elif len(res_atn) >= len(empty_atn):
@@ -306,17 +332,19 @@ for root, dirs, files in os.walk(user_base):
                             for atn in mol_atn:
                                 if atn in res_slab_atn:
                                     res_slab_atn.remove(atn)
-
                             try:
                                 supercell_factor = int(len(res_slab_atn) / len(empty_atn))
-                                for atn in empty_atn * supercell_factor:
-                                    if atn in res_slab_atn:
-                                        res_slab_atn.remove(atn)
+                                if sorted(empty_atn * supercell_factor) \
+                                        == sorted(res_slab_atn):
+                                    found = True
+                                #for atn in empty_atn * supercell_factor:
+                                #    if atn in res_slab_atn:
+                                #        res_slab_atn.remove(atn)
                             except:
                                 continue
 
-                            if len(res_slab_atn) == 0:
-                                found =True
+                            #if len(res_slab_atn) == 0:
+                            #    found =True
 
                         if found:
                             n_ads = k
@@ -324,18 +352,14 @@ for root, dirs, files in os.walk(user_base):
                             ads_key = key
                             traj_files[key][n] = traj
                             chemical_compositions[key][n] = chemical_composition_metal
-                            ase_id = check_in_ase(traj, ase_db)
-                            species = clear_state(clear_prefactor(reaction[key][n]))
-                            if ase_id is None:
-                                key_value_pairs = publication_keys.copy()
-                                key_value_pairs.update({'name': get_chemical_formula(traj_empty),
-                                                        'species': species,
-                                                        'epot': get_energies([traj]),
-                                                        'site': sites,
-                                                        'facet': ase_facet,
-                                                        'layers': get_n_layers(traj)})
-                                ase_id = write_ase(traj, ase_db, **key_value_pairs)
+                            species = clear_prefactor(reaction[key][n])
 
+                            ase_id = check_in_ase(traj, ase_db)
+                            if ase_id is None:
+                                key_value_pairs.update({'species': 
+                                                        clear_state(species),
+                                                        'n': n_ads})
+                                ase_id = write_ase(traj, ase_db, **key_value_pairs)
                             ase_ids.update({species: ase_id})
 
       
@@ -343,6 +367,7 @@ for root, dirs, files in os.walk(user_base):
             if n_ads > 1:
                 for key1, values in prefactor_scale.iteritems():
                     for mol_i in range(len(values)):
+                        #prefactor_scale_ads[key1][mol_i] = n_ads
                         if states[key1][mol_i] == 'gas':
                             prefactor_scale[key1][mol_i] = n_ads
 
@@ -351,10 +376,11 @@ for root, dirs, files in os.walk(user_base):
                     for mol_i in range(len(values)):
                         if reaction[key2][mol_i] =='star':
                             prefactor_scale[key2][mol_i] *= supercell_factor + 1
-
-            if found is False:
-                print '{} file is not part of reaction, include as reference'.format(f)
-                ase_ids.update({chemical_composition_metal: ase_id})        
+            
+            
+            #if found is False:
+            #    print '{} file is not part of reaction, include as reference'.format(f)
+            #    ase_ids.update({chemical_composition_metal: ase_id})        
 
         ## Transition state has higher energy
         #if len(np.unique(chemical_compositions)) > len(chemical_compositions):
@@ -372,7 +398,7 @@ for root, dirs, files in os.walk(user_base):
 
         reaction_energy = None
         activation_energy = None        
-        # try: 
+        # 
         reaction_energy, activation_energy = \
             get_reaction_energy(traj_files, prefactors_final, prefactors_TS)    
 
@@ -395,9 +421,9 @@ for root, dirs, files in os.walk(user_base):
         products = {}
         for key in ['reactants', 'products']:
             for i, r in enumerate(reaction[key]):
-                r = clear_state(r)
+                #r = clear_state(r)
                 r = clear_prefactor(r)
-                reaction_info[key].update({r: [states[key][i], prefactors_final[key][i]]})
+                reaction_info[key].update({r: prefactors[key][i]})
 
 #       print chemical_composition, reaction_energy, activation_energy
         key_value_pairs_catapp = {'chemical_composition': chemical_composition,
@@ -414,6 +440,7 @@ for root, dirs, files in os.walk(user_base):
                                   'doi': doi,
                                   'year': year,
                                   'ase_ids': ase_ids,
+                                  'user': user
                                   }
         
         
