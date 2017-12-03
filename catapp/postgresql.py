@@ -80,27 +80,35 @@ class CatappPostgreSQL:
         #    id = self.get_last_id(cur) + 1
         #else:
         #    id = self.id
+        key_str, value_str = get_key_value_str(values)
 
-        key_str = 'chemical_composition, surface_composition, facet, sites, reactants, products, reaction_energy, activation_energy, dft_code, dft_functional, publication, doi, year, ase_ids'
-        value_str = "'{}'".format(values[1])
-        for v in values[2:]:
-            if isinstance(v, unicode):
-                v = v.encode('ascii','ignore')
-            if isinstance(v, str):
-                value_str += ", '{}'".format(v)
-            elif v is None or v == '':
-                value_str += ", {}".format('NULL')
-            else:
-                value_str += ", {}".format(v)
         insert_command = 'INSERT INTO catapp ({}) VALUES ({}) RETURNING id;'.format(key_str, value_str)
         print insert_command
         cur.execute(insert_command)
         id = cur.fetchone()[0]
-        print id
         if self.connection is None:
             con.commit()
             con.close()
         return id
+
+        
+    def update(self, id, values):
+        con = self.connection or self._connect()
+        self._initialize(con)
+        cur = con.cursor()
+
+        key_str, value_str = get_key_value_str(values)
+
+        update_command = 'UPDATE catapp SET ({}) = ({}) WHERE id = {};'.format(key_str, value_str, id)
+
+        print update_command
+        cur.execute(update_command)
+        #id = cur.fetchone()[0]
+        if self.connection is None:
+            con.commit()
+            con.close()
+        return id
+
 
     def transfer(self, filename_sqlite):
         from catappsqlite import CatappSQLite
@@ -116,6 +124,7 @@ class CatappPostgreSQL:
                 id = self.check(values[7])
                 if id is not None:
                     print 'Allready in catapp db with row id = {}'.format(id)
+                    id = self.update(id, values)
                 else:
                     id = self.write(values)
                     print 'Written to catapp db row id = {}'.format(id)
@@ -134,3 +143,19 @@ class CatappPostgreSQL:
         else:
             id = None
         return id
+
+
+def get_key_value_str(values):
+    key_str = 'chemical_composition, surface_composition, facet, sites, reactants, products, reaction_energy, activation_energy, dft_code, dft_functional, publication, doi, year, ase_ids'
+    value_str = "'{}'".format(values[1])
+    for v in values[2:]:
+        if isinstance(v, unicode):
+            v = v.encode('ascii','ignore')
+        if isinstance(v, str):
+            value_str += ", '{}'".format(v)
+        elif v is None or v == '':
+            value_str += ", {}".format('NULL')
+        else:
+            value_str += ", {}".format(v)
+        
+    return key_str, value_str
