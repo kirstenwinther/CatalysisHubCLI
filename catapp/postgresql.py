@@ -62,6 +62,15 @@ class CatappPostgreSQL:
         self.initialized = True
         return self
 
+    def drop_tables(self):
+        con = self.connection or self._connect()
+        self._initialize(con)
+        cur = con.cursor()
+        cur.execute("drop table catapp, text_key_values, number_key_values, information, species, systems;")
+        con.commit()
+        con.close()
+        return
+
     def status(self):
         con = self.connection or self._connect()
         self._initialize(con)
@@ -124,9 +133,9 @@ class CatappPostgreSQL:
                 id = self.check(values[7])
                 if id is not None:
                     print 'Allready in catapp db with row id = {}'.format(id)
-                    id = self.update(id, values)
+                    id = self.update(id, values[:-1])
                 else:
-                    id = self.write(values)
+                    id = self.write(values[:-1])
                     print 'Written to catapp db row id = {}'.format(id)
 
     
