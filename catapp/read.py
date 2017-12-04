@@ -23,14 +23,16 @@ debug = False
 strict = False
 
 if os.environ['USER'] == 'winther':
-    data_base = catbase + 'winther/databases/'
-    ase_db = data_base + 'atoms.db'
     user = argv[1]
+    data_base = catbase + 'winther/databases/'
+    ase_db = data_base + 'atoms_{}.db'.format(user)
+    catapp_db = data_base + 'catapp_{}.db'.format(user)
 
 else:
     user = os.environ['USER']
     data_base = catbase + user + '/'
     ase_db = data_base + 'atoms.db'
+    catapp_db = data_base + 'catapp.db'
 
 user_base = catbase + user
 user_base_level = len(user_base.split("/"))
@@ -280,6 +282,7 @@ for root, dirs, files in os.walk(user_base):
                                 'state': 'star'})
 
         for i, f in enumerate(traj_slabs):
+            ase_id = None
             id, ase_id = check_in_ase(traj, ase_db)
             found = False
             traj = '{}/{}'.format(root, f)
@@ -288,9 +291,11 @@ for root, dirs, files in os.walk(user_base):
 
             if i == ts_i:                
                 found = True
+                key_value_pairs.update({'species': 'TS'})
                 if ase_id is None:
-                    key_value_pairs.update({'species': 'TS'})
                     ase_id = write_ase(traj, ase_db, **key_value_pairs)
+                else:
+                    update_ase(ase_db, id,  **key_value_pairs)
                 ase_ids.update({'TSstar': ase_id})
                 continue
 
@@ -300,10 +305,11 @@ for root, dirs, files in os.walk(user_base):
                     if '' in mollist:
                         n = mollist.index('')
                         traj_files[key][n] = traj
-                
+                key_value_pairs.update({'species': ''})
                 if ase_id is None:
-                    key_value_pairs.update({'species': ''})
                     ase_id = write_ase(traj, ase_db, **key_value_pairs)
+                else:
+                    update_ase(ase_db, id, **key_value_pairs)                    
                 ase_ids.update({'star': ase_id})
                 continue
             
@@ -337,14 +343,8 @@ for root, dirs, files in os.walk(user_base):
                                 if sorted(empty_atn * supercell_factor) \
                                         == sorted(res_slab_atn):
                                     found = True
-                                #for atn in empty_atn * supercell_factor:
-                                #    if atn in res_slab_atn:
-                                #        res_slab_atn.remove(atn)
                             except:
                                 continue
-
-                            #if len(res_slab_atn) == 0:
-                            #    found =True
 
                         if found:
                             n_ads = k
@@ -354,12 +354,14 @@ for root, dirs, files in os.walk(user_base):
                             chemical_compositions[key][n] = chemical_composition_metal
                             species = clear_prefactor(reaction[key][n])
 
-                            ase_id = check_in_ase(traj, ase_db)
+                            id, ase_id = check_in_ase(traj, ase_db)
+                            key_value_pairs.update({'species': 
+                                                    clear_state(species),
+                                                    'n': n_ads})
                             if ase_id is None:
-                                key_value_pairs.update({'species': 
-                                                        clear_state(species),
-                                                        'n': n_ads})
                                 ase_id = write_ase(traj, ase_db, **key_value_pairs)
+                            else:
+                                update_ase(ase_db, id, **key_value_pairs)
                             ase_ids.update({species: ase_id})
 
       
@@ -421,7 +423,6 @@ for root, dirs, files in os.walk(user_base):
         products = {}
         for key in ['reactants', 'products']:
             for i, r in enumerate(reaction[key]):
-                #r = clear_state(r)
                 r = clear_prefactor(r)
                 reaction_info[key].update({r: prefactors[key][i]})
 
@@ -444,7 +445,7 @@ for root, dirs, files in os.walk(user_base):
                                   }
         
         
-        with CatappSQLite(data_base + 'catapp.db') as db:
+        with CatappSQLite(catapp_db) as db:
             id = db.check(reaction_energy)
             if id is not None:
                 print 'Allready in catapp db with row id = {}'.format(id)
