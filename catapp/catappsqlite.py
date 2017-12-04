@@ -19,7 +19,8 @@ init_command = \
                 publication text,
                 doi text,
                 year int,
-                ase_ids text
+                ase_ids text,
+                user text
                 )"""
 
 
@@ -55,7 +56,6 @@ class CatappSQLite:
 
         cur = con.execute(
             'SELECT COUNT(*) FROM sqlite_master WHERE name="catapp"')
-
         if cur.fetchone()[0] == 0:
             con.execute(init_command)
             self.id = 1
@@ -88,13 +88,13 @@ class CatappSQLite:
                   json.dumps(values['products']),
                   values['reaction_energy'],
                   values['activation_energy'],
-                  # str(values['gas_references']),
                   values['dft_code'],
                   values['dft_functional'],
                   values['publication'],
                   values['doi'],
                   int(values['year']),
-                  json.dumps(values['ase_ids'])
+                  json.dumps(values['ase_ids']),
+                  values['user']
                   )
 
         q = ', '.join('?' * len(values))
