@@ -101,14 +101,15 @@ class CatappPostgreSQL:
         return id
 
         
-    def update(self, id, values):
+    def update(self, id, values, key_names='all'):
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
 
         key_str, value_str = get_key_value_str(values)
 
-        update_command = 'UPDATE catapp SET ({}) = ({}) WHERE id = {};'.format(key_str, value_str, id)
+        update_command = 'UPDATE catapp SET ({}) = ({}) WHERE id = {};'\
+            .format(key_str, value_str, id)
 
         print update_command
         cur.execute(update_command)
@@ -118,19 +119,44 @@ class CatappPostgreSQL:
             con.close()
         return id
 
+    def update_publication(self, pub_dict, authorlist, year):
+        con = self.connection or self._connect()
+        self._initialize(con)
+        cur = con.cursor()
+        #SELECT jsonb_set('{"a":[null,{"b":[1,2]}]}', '{a,1,b,1000}', jsonb '3', true)        
+        key0 = pub_dict.keys()[0]
+        ids = []
 
-    def transfer(self, filename_sqlite):
+        update_command = \
+        """UPDATE catapp SET 
+        publication = jsonb_set(publication, '{{}}', '"{}"' || {}) 
+        WHERE 
+        publication -> 'authors' = '{}' and year = {};"""\
+            .format(key0, pub_dict[key0], str(pub_dict), str(authorlist), year)
+            #.format(key_str, value_str, id)
+
+        cur.execute(update_command)
+        #id = cur.fetchone()[0]
+        if self.connection is None:
+            con.commit()
+            con.close()
+
+        return ids
+
+
+    def transfer(self, filename_sqlite, start_id=1):
         from catappsqlite import CatappSQLite
         with CatappSQLite(filename_sqlite) as db:
             con_lite = db._connect()
             cur_lite = con_lite.cursor()
             n = db.get_last_id(cur_lite)
-            for id_lite in range(1, n+1):
+            for id_lite in range(start_id, n+1):
+                print id_lite
                 row = db.read(id_lite)
                 if len(row) == 0:
                     continue
                 values = row[0]
-                id = self.check(values[7])
+                id = self.check(values[1], values[7]) # values[5], values[6], 
                 if id is not None:
                     print 'Allready in catapp db with row id = {}'.format(id)
                     id = self.update(id, values[:-1])
@@ -139,11 +165,15 @@ class CatappPostgreSQL:
                     print 'Written to catapp db row id = {}'.format(id)
 
     
-    def check(self, reaction_energy):
+    def check(self, chemical_composition, reaction_energy):#reactants, products, reaction_energy):
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
-        statement = 'SELECT catapp.id FROM catapp WHERE catapp.reaction_energy={}'.format(reaction_energy)
+        statement = \
+        """SELECT id 
+        FROM catapp WHERE 
+        (chemical_composition,  reaction_energy) = 
+        ('{}', {})""".format(chemical_composition, reaction_energy)
         #argument = [reaction_energy]
         cur.execute(statement)
         rows = cur.fetchall()
@@ -154,6 +184,21 @@ class CatappPostgreSQL:
         return id
 
 
+
+    def publication_status(self):
+        con = self.connection or self._connect()
+        self._initialize(con)
+        cur = con.cursor()
+
+        select_statement = \
+        """SELECT id 
+        FROM catapp WHERE 
+        publication -> 'doi' is NULL 
+        OR
+        publication ->> 'doi' = '';"""
+        cur.execute(select_statement)
+
+        
 def get_key_value_str(values):
     key_str = 'chemical_composition, surface_composition, facet, sites, reactants, products, reaction_energy, activation_energy, dft_code, dft_functional, publication, doi, year, ase_ids'
     value_str = "'{}'".format(values[1])
