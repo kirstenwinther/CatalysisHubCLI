@@ -85,3 +85,28 @@ def check_reaction(reactants, products):
             p_stars += a
     assert ''.join(sorted(reactants)) == ''.join(sorted(products))
     #assert r_stars == p_stars, 'Please match the number of surfaces on each side. Left side: {} *s, right side: {} *s'.format(r_stars, p_stars)
+
+
+def get_bases(user=None):
+    import os
+    if 'SHERLOCK' in os.environ:
+        sherlock = os.environ['SHERLOCK']
+        if sherlock == '1':
+            catbase = '/home/winther/data_catapp/'
+        elif sherlock == '2':
+            catbase = '/home/users/winther/data_catapp/'
+
+    elif 'SLAC_ENVIRON' in os.environ:        
+        catbase = '/nfs/slac/g/suncatfs/data_catapp/'
+    
+    if os.environ['USER'] == 'winther':
+        data_base = catbase + 'winther/databases/'
+    else:
+        user = os.environ['USER']
+        data_base = catbase + user + '/'
+
+    user_base = catbase + user
+
+
+    return catbase, data_base, user, user_base
+    
