@@ -412,6 +412,17 @@ def get_reaction_from_folder(folder_name):
         for n, mol in enumerate(mollist):
             if 'gas' not in mol and 'star' not in mol:
                 reaction[key][n] = mol + 'star'
+
+
+    for key, mollist in reaction.iteritems():
+        n_star = mollist.count('star')
+        if n_star > 1:
+            for n in range(n_star):
+                mollist.remove('star')
+            mollist.append(str(n_star) + 'star')
+    from tools import check_reaction
+    check_reaction(reaction['reactants'], reaction['products'])
+
     return reaction
 
 
@@ -435,35 +446,41 @@ def get_reaction_atoms(reaction):
 
     import copy
     prefactors_TS = copy.deepcopy(prefactors)
-    # Empty slab balance
 
+    # Balance the number of slabs on each side of reaction
     n_star = {'reactants': 0,
               'products': 0}
 
     for key, statelist in states.iteritems():
-        for s in statelist:
+        for j, s in enumerate(statelist):
             if s == 'star':
-                n_star[key] += 1
+                n_star[key] += prefactors[key][j]
 
     n_r = n_star['reactants']
     n_p = n_star['products']
 
     diff = n_p - n_r
-
-    if diff > 0:
-        n_r += diff
-        reaction['reactants'].append('star')
-        prefactors['reactants'].append(diff)
-        prefactors_TS['reactants'].append(1)
-        states['reactants'].append('star')
-        reaction_atoms['reactants'].append('')
-
-    elif diff < 0:
-        n_p += -diff
-        reaction['products'].append('star')
-        prefactors['products'].append(-diff)
-        states['products'].append('star')
-        reaction_atoms['products'].append('')
+    if abs(diff) > 0:
+        if diff > 0:  # add empty slabs to left-hand side
+            n_r += diff 
+            key = 'reactants'
+        else:  # add to right-hand side
+            diff *= -1  # diff should be positive
+            n_p += diff
+            key = 'products'
+        
+        if '' not in reaction_atoms[key]:
+            reaction[key].append('star')
+            prefactors[key].append(diff)
+            if key == 'reactants':
+                prefactors_TS[key].append(1)
+            states[key].append('star')
+            reaction_atoms[key].append('')
+        else:
+            index = states[key].index('star')
+            prefactors[key][index] += diff
+            # if key == 'reactants':
+            #     prefactors_TS[key]['star'] += 1
 
     if n_r > 1:
         if len([s for s in states['reactants'] if s =='star']) > 1:
@@ -479,7 +496,9 @@ def debug_assert(expression, message, debug=False):
             assert expression, message
         except AssertionError as e:
             print(e)
+            return False
     else:
         assert expression, message
-
+    
+    return True
 # def handle_gas_species():
