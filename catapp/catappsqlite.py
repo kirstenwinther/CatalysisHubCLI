@@ -90,7 +90,7 @@ class CatappSQLite:
                   values['activation_energy'],
                   values['dft_code'],
                   values['dft_functional'],
-                  values['publication'],
+                  json.dumps(values['publication']),
                   values['doi'],
                   int(values['year']),
                   json.dumps(values['ase_ids']),
