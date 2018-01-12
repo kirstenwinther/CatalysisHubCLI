@@ -43,10 +43,11 @@ class FolderReader:
             self.__dict__.update(user_spec)
 
     
-    def read(self, skip=None):
+    def read(self, skip=None, goto_reaction=None):
         if skip is not None:
             self.omit_folders.append(skip)
         up = 0
+        found_reaction = False
         for root, dirs, files in os.walk(self.user_base):
             for omit_folder in self.omit_folders:  # user specified omit_folder
                 if omit_folder in dirs:
@@ -63,6 +64,15 @@ class FolderReader:
                 self.DFT_functional = self.read_name_from_folder(root)
 
             if level == self.reaction_level:
+                #print root.split("/")[-1]
+                if goto_reaction is not None:
+                    if not found_reaction:
+                        if not root.split("/")[-1] == goto_reaction:
+                            dirs[:] = []
+                            continue
+                        else:
+                            found_reaction == True
+
                 self.read_reaction(root, files)
 
             if level == self.metal_level:
@@ -71,7 +81,8 @@ class FolderReader:
             if level == self.metal_level + up:
                 self.read_metal(root)
                 if self.user == 'roling':
-                    if self.metal == self.reaction['reactants'][0].replace('star', ''):
+                    if self.metal ==\
+                       self.reaction['reactants'][0].replace('star', ''):
                         up = 1
                         continue
 
@@ -98,8 +109,8 @@ class FolderReader:
                 if self.key_value_pairs_catapp is not None:
                     yield self.key_value_pairs_catapp
             
-    def write(self, skip=None):
-        for key_values in self.read(skip=skip):
+    def write(self, skip=None, goto_reaction=None):
+        for key_values in self.read(skip=skip, goto_reaction=goto_reaction):
             with CatappSQLite(self.catapp_db) as db:
                 id = db.check(key_values['reaction_energy'])
                 #print 'Allready in catapp db with row id = {}'.format(id)
@@ -179,7 +190,7 @@ class FolderReader:
         except:
             print 'ERROR: omitting directory {}'.format(root)
             dirs = []
-            return
+            return False
 
         print '-------------- REACTION:  {} --> {} -----------------'\
             .format('+'.join(self.reaction['reactants']), 
@@ -187,7 +198,7 @@ class FolderReader:
 
         self.reaction_atoms, self.prefactors, self.prefactors_TS, \
             self.states = get_reaction_atoms(self.reaction)
-                
+
         # Create empty dictionaries
         r_empty = ['' for n in range(len(self.reaction['reactants']))]
         p_empty = ['' for n in range(len(self.reaction['products']))]
@@ -471,6 +482,7 @@ class FolderReader:
                      'reaction energy is wrong: {} eV: {}'\
                      .format(reaction_energy, root),
                      self.debug)
+        
         expr = activation_energy is None or -10 < activation_energy < 10
         debug_assert(expr,
                      'activation energy is wrong: {} eV: {}'\
