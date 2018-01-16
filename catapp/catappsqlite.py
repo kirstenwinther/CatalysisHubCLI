@@ -111,6 +111,7 @@ class CatappSQLite:
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
+        values['year'] = int(values['year'])
 
         key_list, value_list = get_key_value_list(key_names, values)
         N_keys = len(key_list)
@@ -127,6 +128,7 @@ class CatappSQLite:
         execute_str = ', '.join('{}={}'.format(key_list[i], value_strlist[i])
                                 for i in range(N_keys))
         
+
         #execute_str = ', '.join('{}={}'.format(key_list[i], value_strlist[i]) for i in update_index)
         
         update_command = 'UPDATE catapp SET {} WHERE id = {};'\
@@ -166,7 +168,7 @@ def get_key_value_str(values):
     for v in values[2:]:
         if isinstance(v, unicode):
             v = v.encode('ascii','ignore')
-        if isinstance(v, str):
+        if isinstance(v, str) or isinstance(v, dict):
             value_str += ", '{}'".format(v)
         elif v is None or v == '':
             value_str += ", {}".format('NULL')
@@ -195,7 +197,10 @@ def get_value_strlist(value_list):
     for v in value_list:
         if isinstance(v, unicode):
             v = v.encode('ascii','ignore')
-        if isinstance(v, str):
+        if isinstance(v, dict):
+            v = json.dumps(v)
+            value_strlist.append("'{}'".format(v))
+        elif isinstance(v, str):
             value_strlist.append("'{}'".format(v))
         elif v is None or v == '':
             value_strlist.append("{}".format('NULL'))

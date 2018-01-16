@@ -35,6 +35,8 @@ class FolderReader:
         self.facet_level = 6
         self.site_level = None
         self.final_level = 6
+        self.title = None
+        self.authors = None
         user_file = '{}winther/user_specific/{}.txt'.format(self.catbase, 
                                                             self.user) 
         self.omit_folders = []
@@ -122,13 +124,13 @@ class FolderReader:
                 #elif self.update:
                 #    db.update(id, key_value_pairs_catapp)
             
-    def update(key_names='all'):
-        with CatappSQLite(self.catapp_db) as db:
-            for key_values in self.read():
+    def update_sqlite(self, skip=None, goto_reaction=None, key_names='all'):
+        for key_values in self.read(skip=skip, goto_reaction=goto_reaction):
+            with CatappSQLite(self.catapp_db) as db:
                 id = db.check(key_values['reaction_energy'])
                 #print 'Allready in catapp db with row id = {}'.format(id)
                 if id is not None:
-                    db.update(id, key_value_pairs_catapp, key_names=key_names)
+                    db.update(id, key_values, key_names)
     
 
     def read_name_from_folder(self, root):
@@ -164,11 +166,14 @@ class FolderReader:
 
         except:
             print 'ERROR: insufficient publication info'
-            year = 2017
+            year = 2018
             doi = None
-            
-            pub_data = {'title': root.split('/')[-1],
-                        'authors': self.user,
+            if self.title is None:
+                self.title = root.split('/')[-1]
+            if self.authors is None:
+                self.authors = [self.user]
+            pub_data = {'title': self.title,
+                        'authors': self.authors,
                         'journal': None,
                         'volume': None,
                         'number': None,
@@ -350,10 +355,11 @@ class FolderReader:
                                 'state': 'star'})
 
         for i, f in enumerate(traj_slabs):
+            traj = '{}/{}'.format(root, f)
+
             ase_id = None
             id, ase_id = check_in_ase(traj, self.ase_db)
             found = False
-            traj = '{}/{}'.format(root, f)
 
             key_value_pairs.update({'epot': get_energies([traj])})
             chemical_composition_metal = get_chemical_formula(traj)
