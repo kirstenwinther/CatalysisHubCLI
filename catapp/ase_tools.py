@@ -21,6 +21,7 @@ def read_ase(filename):
     return atoms
 
 
+
 def check_traj(filename, strict=True, verbose=True):
     try:
         atoms = read_ase(filename)
@@ -33,7 +34,7 @@ def check_traj(filename, strict=True, verbose=True):
                 print 'Converting to new ase format!'
             atoms = read_ase(filename)
         except:
-            print 'Could not read .traj file'
+            print 'Could not read .traj file: {}'.format(filename)
             return False
 
     try:
