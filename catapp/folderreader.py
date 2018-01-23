@@ -43,8 +43,8 @@ class FolderReader:
         if os.path.isfile(user_file):
             user_spec = json.load(open(user_file, 'r'))
             self.__dict__.update(user_spec)
-
-    
+        
+        
     def read(self, skip=None, goto_reaction=None):
         if skip is not None:
             self.omit_folders.append(skip)
@@ -182,7 +182,7 @@ class FolderReader:
                         'publisher': None,
                         'doi': None,
                         }
-            self.reference = pub_data
+            self.reference = json.dumps(pub_data)
         self.doi = doi
         self.year = year
         self.publication_keys = publication_keys
@@ -213,13 +213,22 @@ class FolderReader:
 
         self.ase_ids = {}
 
-        traj_gas = [f for f in files if f.endswith('.traj')]
+        traj_gas = ['{}/{}'.format(root,f) for f in files if f.endswith('.traj')]
         
+        if len(traj_gas) == 0 and \
+                np.any(['gas' in self.states.values()[s] \
+                            for s in range(len(self.states.values()))]):
+            import fnmatch
+            traj_gas = []
+            for root2, dirs2, files2 in os.walk(root):
+                for f2 in [f2 for f2 in files2 if f2.endswith('gas.traj')]:
+                    traj_gas.append('{}/{}'.format(root2,f2))
+
         key_value_pairs = copy.deepcopy(self.publication_keys)
-        for f in traj_gas:
+        for traj in traj_gas:
             ase_id = None
             found = False
-            traj = '{}/{}'.format(root, f)
+            
             if not check_traj(traj, self.strict, False):
                 return
             chemical_composition = \
@@ -262,16 +271,23 @@ class FolderReader:
         self.metal = root.split('/')[-1]
         if self.metal_level == self.facet_level:
             if len(self.metal.split('_')) == 2:
-                self.metal, self.facet = metal.split('_')
+                self.metal, self.facet = self.metal.split('_')
+                self.sites = ''
+                self.ase_facet = self.facet
+                if not 'x' in self.facet and not '-' in self.facet:
+                    facetstr = 'x'.join('{}' for f in self.facet)
+                    self.ase_facet = facetstr.format(*self.facet)
+
             else:
                 self.facet = None
-                self.ase_facet = None
+                self.ase_facet = ''
+                self.sites = ''
         print '--------------- METAL: {} ---------------'.format(self.metal) 
 
     def read_facet(self, root):
         folder_name = root.split('/')[-1]
         
-        if not self.facet_level == self.site_level:
+        if not self.facet_level == self.site_level or self.site_level is None: 
             self.facet = folder_name
         else:
             split = folder_name.split('_')
@@ -461,8 +477,8 @@ class FolderReader:
         ## Transition state has higher energy
         #if len(np.unique(chemical_compositions)) > len(chemical_compositions):
         #    for chemical_composition in chemical_compositions:
-
-        surface_composition = get_surface_composition(traj_empty)
+        
+        surface_composition = self.metal#get_surface_composition(traj_empty)
         bulk_composition = get_bulk_composition(traj_empty)
         chemical_composition = get_chemical_formula(traj_empty)
         
@@ -474,7 +490,7 @@ class FolderReader:
 
         reaction_energy = None
         activation_energy = None        
-
+        
         reaction_energy, activation_energy = \
             get_reaction_energy(self.traj_files, prefactors_final, 
                                 self.prefactors_TS)    
