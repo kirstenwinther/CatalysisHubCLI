@@ -142,6 +142,23 @@ class CatappPostgreSQL:
             con.close()
 
         return ids
+    
+    def delete(self, authorlist, year, doi=None):
+        con = self.connection or self._connect()
+        self._initialize(con)
+        cur = con.cursor()
+        if doi is None:
+            delete_command = \
+                """DELETE from catapp 
+                WHERE 
+                publication -> 'authors' = '{}' and year = {};""".format(authorlist, year)
+        cur.execute(delete_command)
+        count = cur.fetchone()[0]
+        if self.connection is None:
+            con.commit()
+            con.close()
+
+        return count
 
 
     def transfer(self, filename_sqlite, start_id=1):
