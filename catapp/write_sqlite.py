@@ -4,8 +4,14 @@ import sys
 from folderreader import FolderReader
 
 user = sys.argv[1]
-FR = FolderReader(user=user)
+if len(sys.argv) > 2:
+    goto_reaction = sys.argv[2]
+else:
+    goto_reaction = None
 
-FR.write()
+FR = FolderReader(user=user, debug=True)
+
+
+FR.write(skip=None, goto=None)
 
 
