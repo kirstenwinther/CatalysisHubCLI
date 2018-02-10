@@ -23,10 +23,11 @@ def read_ase(filename):
 
 
 def check_traj(filename, strict=True, verbose=True):
+    import math
     try:
         atoms = read_ase(filename)
         if verbose:
-            print 'traj file ok!'
+            print 'traj file read!'
     except:
         try:
             convert(filename)
@@ -39,10 +40,12 @@ def check_traj(filename, strict=True, verbose=True):
 
     try:
         atoms.get_potential_energy()
+        assert not math.isnan(atoms.get_potential_energy()), 'Energy is NaN!'
     except:
         if strict:
             raise RuntimeError, 'No energy for .traj file: {}'.format(filename)
         else:
+            print 'No energy for .traj file: {}'.format(filename)
             return False
     return True
 
@@ -367,12 +370,12 @@ def check_in_ase(filename, ase_db, energy=None):
         return None, None
 
 
-def write_ase(filename, db_file, **key_value_pairs):
+def write_ase(filename, db_file, user=None, **key_value_pairs):
     """ Connect to ASE db"""
     atoms = read_ase(filename)
-
     atoms = tag_atoms(atoms)
     db_ase = ase.db.connect(db_file)
+    #db_ase.user = user
     id = db_ase.write(atoms, **key_value_pairs)
     print 'writing atoms to ASE db row id = {}'.format(id)
     unique_id = db_ase.get(id)['unique_id']
@@ -421,9 +424,9 @@ def get_reaction_from_folder(folder_name):
             for n in range(n_star):
                 mollist.remove('star')
             mollist.append(str(n_star) + 'star')
-    from tools import check_reaction
-    check_reaction(reaction['reactants'], reaction['products'])
-
+    
+    #from tools import check_reaction
+    #check_reaction(reaction['reactants'], reaction['products'])
     return reaction
 
 

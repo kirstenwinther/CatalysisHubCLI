@@ -3,25 +3,60 @@ import json
 
 import numpy as np
 
-init_command = \
-                """CREATE TABLE catapp (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                chemical_composition text,
-                surface_composition text,
-                facet text,
-                sites text,
-                reactants text,
-                products text,
-                reaction_energy real,
-                activation_energy real,
-                dft_code text,
-                dft_functional text,
-                publication text,
-                doi text,
-                year int,
-                ase_ids text,
-                user text
-                )"""
+init_commands = [
+    """ CREATE TABLE publications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pub_id text UNIQUE,
+    title text,
+    authors text,
+    journal text,
+    volume text,
+    number text,
+    pages text,
+    year integer,
+    publisher text,
+    doi text,
+    tags text
+    );""",
+
+    """CREATE TABLE publication_structures (
+    ase_id text REFERENCES systems(unique_id),
+    pub_id text REFERENCES publications(pub_id),
+    PRIMARY KEY (pub_id, ase_id)
+    );""",
+    
+    """CREATE TABLE catapp (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chemical_composition text,
+    surface_composition text,
+    facet text,
+    sites text,
+    reactants text,
+    products text,
+    reaction_energy real,
+    activation_energy real,
+    dft_code text,
+    dft_functional text,
+    username text,
+    pub_id text, 
+    FOREIGN KEY (pub_id) REFERENCES publications(pub_id)
+    );""",
+
+    """ CREATE TABLE catapp_structures (
+    name text,
+    ase_id text,
+    id integer,
+    FOREIGN KEY (ase_id) REFERENCES systems(unique_id),
+    FOREIGN KEY (id) REFERENCES catapp(id)
+    );"""
+]
+
+#index_statements = [
+#    'CREATE INDEX idxpubid ON publications(pub_id)',
+#    'CREATE INDEX idxrecen ON catapp(reaction_energy)',
+#    'CREATE INDEX idxchemcomp ON catapp(chemical_composition)',
+#    'CREATE INDEX idxuser ON catapp(user)',
+#]
 
 
 class CatappSQLite:
@@ -31,6 +66,7 @@ class CatappSQLite:
         self.default = 'NULL'  # used for autoincrement id
         self.connection = None
         self.id = None
+        self.pid = None
 
     def _connect(self):
         return sqlite3.connect(self.filename, timeout=600)
@@ -52,33 +88,83 @@ class CatappSQLite:
         if self.initialized:
             return
 
+        import ase
+        from ase.db.sqlite import SQLite3Database
+        SQLite3Database()._initialize(con)
+
         self._metadata = {}
 
         cur = con.execute(
             'SELECT COUNT(*) FROM sqlite_master WHERE name="catapp"')
         if cur.fetchone()[0] == 0:
-            con.execute(init_command)
+            for init_command in init_commands:
+                con.execute(init_command)
             self.id = 1
+            self.pid = 1
             con.commit()
 
         self.initialized = True
 
-    def read(self, id):
+    def read(self, id, table='catapp'):
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
-        cur.execute('SELECT * FROM \n catapp \n WHERE \n catapp.id={}'.format(id))
+        cur.execute('SELECT * FROM \n {} \n WHERE \n {}.id={}'.format(table,
+                                                                      table,
+                                                                      id))
         row = cur.fetchall()
         return row
-        
+
+    
+    def write_publication(self, values):
+        con = self.connection or self._connect()
+        self._initialize(con)
+        cur = con.cursor()
+        if self.pid is None:
+            pid = self.get_last_pub_id(cur) + 1
+        else:
+            pid = self.pid
+
+        values = (pid,
+                  values['pub_id'],
+                  values['title'],
+                  json.dumps(values['authors']),
+                  values['journal'],
+                  values['volume'],
+                  values['number'],
+                  values['pages'],
+                  values['year'],
+                  values['publisher'],
+                  values['doi'],
+                  json.dumps(values['tags'])
+        )
+
+        q = ', '.join('?' * len(values))
+        cur.execute('INSERT INTO publications VALUES ({})'.format(q),
+                    values)
+        return pid
+    
     def write(self, values, data=None):
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
         if self.id is None:
-            id = self.get_last_id(cur) + 1
+            try:
+                id = self.get_last_id(cur) + 1
+            except:
+                id = 1
         else:
             id = self.id
+
+        pub_id = values['pub_id']
+        ase_ids = values['ase_ids']
+        ase_values = ase_ids.values()
+        assert len(set(ase_values)) == len(ase_values), 'Dublicate ASE ids!'
+
+        reaction_species = set(values['reactants'].keys() +
+                               values['products'].keys())
+        assert len(reaction_species) <= len(ase_values), 'ASE ids missing!'
+        
         values = (id,
                   values['chemical_composition'],
                   values['surface_composition'],
@@ -90,16 +176,22 @@ class CatappSQLite:
                   values['activation_energy'],
                   values['dft_code'],
                   values['dft_functional'],
-                  values['publication'],
-                  values['doi'],
-                  int(values['year']),
-                  json.dumps(values['ase_ids']),
-                  values['user']
+                  values['user'],
+                  values['pub_id']#,
+                  #values['doi'],
+                  #int(values['year']),
                   )
 
         q = ', '.join('?' * len(values))
         cur.execute('INSERT INTO catapp VALUES ({})'.format(q),
                     values)
+        
+        catapp_structure_values = []
+        for name, ase_id in ase_ids.items():
+            catapp_structure_values.append([name, ase_id, id])
+            cur.execute('INSERT OR IGNORE INTO publication_structures(ase_id, pub_id) VALUES (?, ?)', [ase_id, pub_id])
+        cur.executemany('INSERT INTO catapp_structures VALUES (?, ?, ?)',
+                        catapp_structure_values)
 
         if self.connection is None:
             con.commit()
@@ -145,13 +237,33 @@ class CatappSQLite:
         cur.execute('SELECT seq FROM sqlite_sequence WHERE name="catapp"')
         id = cur.fetchone()[0]
         return id
+
+    def get_last_pub_id(self, cur):
+        cur.execute('SELECT seq FROM sqlite_sequence WHERE name="publications"')
+        id = cur.fetchone()[0]
+        return id
     
-    def check(self, reaction_energy):
+    def check(self, chemical_composition, reaction_energy):
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
-        statement = 'SELECT catapp.id FROM \n catapp \n WHERE \n catapp.reaction_energy=?'
-        argument = [reaction_energy]
+        statement = 'SELECT catapp.id FROM \n catapp \n WHERE \n catapp.chemical_composition=? and catapp.reaction_energy=?'
+        argument = [chemical_composition, reaction_energy]
+        
+        cur.execute(statement, argument)
+        rows = cur.fetchall()
+        if len(rows) > 0:
+            id = rows[0][0]
+        else:
+            id = None
+        return id
+        
+    def check_publication(self, pub_id):
+        con = self.connection or self._connect()
+        self._initialize(con)
+        cur = con.cursor()
+        statement = 'SELECT id FROM \n publications \n WHERE \n publications.pub_id=?'
+        argument = [pub_id]
         
         cur.execute(statement, argument)
         rows = cur.fetchall()
@@ -161,6 +273,22 @@ class CatappSQLite:
             id = None
         return id
 
+    def check_publication_structure(self, pub_id, ase_id):
+        con = self.connection or self._connect()
+        self._initialize(con)
+        cur = con.cursor()
+        statement = 'SELECT id FROM \n publication_structures \n WHERE \n publications.pub_id=? and publications.ase_id=?'
+        argument = [pub_id, ase_id]
+        
+        cur.execute(statement, argument)
+        rows = cur.fetchall()
+        if len(rows) > 0:
+            id = rows[0][0]
+        else:
+            id = None
+        return id
+
+    
 
 def get_key_value_str(values):
     key_str = 'chemical_composition, surface_composition, facet, sites, reactants, products, reaction_energy, activation_energy, dft_code, dft_functional, publication, doi, year, ase_ids, user'
