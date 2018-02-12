@@ -121,7 +121,10 @@ class CatappSQLite:
         self._initialize(con)
         cur = con.cursor()
         if self.pid is None:
-            pid = self.get_last_pub_id(cur) + 1
+            try:
+                pid = self.get_last_pub_id(cur) + 1
+            except:
+                pid = 1
         else:
             pid = self.pid
 
@@ -140,7 +143,7 @@ class CatappSQLite:
         )
 
         q = ', '.join('?' * len(values))
-        cur.execute('INSERT INTO publications VALUES ({})'.format(q),
+        cur.execute('INSERT OR IGNORE INTO publications VALUES ({})'.format(q),
                     values)
         return pid
     
@@ -158,13 +161,15 @@ class CatappSQLite:
 
         pub_id = values['pub_id']
         ase_ids = values['ase_ids']
-        ase_values = ase_ids.values()
-        assert len(set(ase_values)) == len(ase_values), 'Dublicate ASE ids!'
+        if ase_ids is not None:
+            ase_values = ase_ids.values()
+            assert len(set(ase_values)) == len(ase_values), 'Dublicate ASE ids!'
 
-        reaction_species = set(values['reactants'].keys() +
-                               values['products'].keys())
-        assert len(reaction_species) <= len(ase_values), 'ASE ids missing!'
-        
+            reaction_species = set(values['reactants'].keys() +
+                                   values['products'].keys())
+            assert len(reaction_species) <= len(ase_values), 'ASE ids missing!'
+        else:
+            ase_ids = {}
         values = (id,
                   values['chemical_composition'],
                   values['surface_composition'],
@@ -185,7 +190,6 @@ class CatappSQLite:
         q = ', '.join('?' * len(values))
         cur.execute('INSERT INTO catapp VALUES ({})'.format(q),
                     values)
-        
         catapp_structure_values = []
         for name, ase_id in ase_ids.items():
             catapp_structure_values.append([name, ase_id, id])

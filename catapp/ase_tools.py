@@ -56,6 +56,10 @@ def get_reference(filename):
     name = atoms.get_chemical_formula()
     return {name: str(energy)}
 
+def get_pbc(filename):
+    atoms = read_ase(filename)
+    return atoms.get_pbc()
+
 
 def get_traj_str(filename):
     atoms = read_ase(filename)
@@ -186,6 +190,7 @@ def get_state(name):
 
 
 def get_reaction_energy(traj_files, prefactors, prefactors_TS):
+
     energies = {}
     for key in traj_files.keys():
         energies.update({key: ['' for n in range(len(traj_files[key]))]})
@@ -410,7 +415,7 @@ def get_reaction_from_folder(folder_name):
         reaction.update({'reactants': [AB],
                          'products': products})
     else:
-        raise AssertionError, 'problem with folder {}'.format(foldername)
+        raise AssertionError, 'problem with folder {}'.format(folder_name)
     
     for key, mollist in reaction.iteritems():
         for n, mol in enumerate(mollist):

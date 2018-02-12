@@ -19,8 +19,8 @@ init_commands = [
     );""",
 
     """CREATE TABLE publication_structures (
-    ase_id text REFERENCES systems(unique_id),
-    pub_id text REFERENCES publications(pub_id),
+    ase_id text REFERENCES systems(unique_id) ON DELETE CASCADE,
+    pub_id text REFERENCES publications(pub_id) ON DELETE CASCADE,
     PRIMARY KEY (pub_id, ase_id)
     );""",
 
@@ -37,13 +37,13 @@ init_commands = [
     dft_code text,
     dft_functional text,
     username text,
-    pub_id text REFERENCES publications (pub_id)
+    pub_id text REFERENCES publications (pub_id) ON DELETE CASCADE
     );""",
 
     """CREATE TABLE catapp_structures (
     name text, 
-    ase_id text REFERENCES systems(unique_id),
-    catapp_id integer REFERENCES catapp(id),
+    ase_id text REFERENCES systems(unique_id) ON DELETE CASCADE,
+    catapp_id integer REFERENCES catapp(id) ON DELETE CASCADE,
     PRIMARY KEY (catapp_id, ase_id)
     )"""
 ]
@@ -111,7 +111,6 @@ class CatappPostgreSQL:
                                password=password,
                                port=5432,
                                database='catappdatabase')
-        print con
         
         return con
 
@@ -157,7 +156,7 @@ class CatappPostgreSQL:
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
-        cur.execute("drop table catapp, text_key_values, number_key_values, information, species, systems;")
+        cur.execute("drop table catapp_structures, catapp, publication_structures, publications, text_key_values, number_key_values, information, species, systems;")
         con.commit()
         con.close()
         return
@@ -175,17 +174,14 @@ class CatappPostgreSQL:
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
-        print pub_values
         pub_id =  pub_values[1].encode('ascii','ignore')
         cur.execute("""SELECT id from publications where pub_id='{}'""".format(pub_id))
         row = cur.fetchone()
-        print row
         if row is not None: #len(row) > 0:
             id = row#[0]
         else:
             key_str, value_str = get_key_value_str(pub_values, 'publications')
             insert_command = 'INSERT INTO publications ({}) VALUES ({}) RETURNING id;'.format(key_str, value_str)
-            print insert_command
 
             cur.execute(insert_command)
             id = cur.fetchone()[0]
@@ -205,12 +201,11 @@ class CatappPostgreSQL:
         #if self.id is None:
         #    id = self.get_last_id(cur) + 1
         #else:
-        #    id = self.id
-        print values
+        #    id = self.
         key_str, value_str = get_key_value_str(values, table)
         
         insert_command = 'INSERT INTO {} ({}) VALUES ({}) RETURNING id;'.format(table, key_str, value_str)
-        print insert_command
+
         
         cur.execute(insert_command)
         id = cur.fetchone()[0]
@@ -231,7 +226,7 @@ class CatappPostgreSQL:
         update_command = 'UPDATE catapp SET ({}) = ({}) WHERE id = {};'\
             .format(key_str, value_str, id)
 
-        print update_command
+
         cur.execute(update_command)
         #id = cur.fetchone()[0]
         if self.connection is None:
@@ -256,7 +251,7 @@ class CatappPostgreSQL:
             .format(json.dumps(pub_dict), json.dumps(authorlist), year)
             #.format(key_str, value_str, id)
 
-        print update_command
+
         #jsonb_set(publication, '{{{}}}', '{}' || '{}') 
         cur.execute(update_command)
 
@@ -322,6 +317,8 @@ class CatappPostgreSQL:
         for id_lite in range(start_id, npub+1):
             Npub += 1
             row = db.read(id=id_lite, table='publications')
+            if len(row) == 0:
+                continue
             values = row[0]
             pid, pub_id = self.write_publication(values)
 
@@ -350,7 +347,7 @@ class CatappPostgreSQL:
             if len(row) == 0:
                 continue
             values = row[0]
-            print values
+
             id = self.check(values[1], values[7]) # values[5], values[6], 
             if id is not None:
                 print 'Allready in catapp db with row id = {}'.format(id)
@@ -364,14 +361,14 @@ class CatappPostgreSQL:
             rows = cur_lite.fetchall()
             for row in rows:
                 Ncatstruc += 1
-                print row
+
                 values = list(row)
-                print values
+
                 values[2] = id
                 key_str, value_str = get_key_value_str(values,
                                                        table='catapp_structures')
                 insert_command = 'INSERT INTO catapp_structures ({}) VALUES ({}) ON CONFLICT DO NOTHING;'.format(key_str, value_str)
-                print insert_command
+
                 cur.execute(insert_command)
                 
 

@@ -33,8 +33,8 @@ class FolderReader:
         self.reaction_level = 4
         self.metal_level= 5
         self.facet_level = 6
-        self.site_level = 7 #None
-        self.final_level = 7
+        self.site_level = None
+        self.final_level = 6
         self.title = None
         self.authors = None
         user_file = '{}winther/user_specific/{}.txt'.format(self.catbase, 
@@ -46,9 +46,10 @@ class FolderReader:
         #    self.__dict__.update(user_spec)
         
         
-    def read(self, skip=None, goto_reaction=None):
-        if skip is not None:
-            self.omit_folders.append(skip)
+    def read(self, skip=[], goto_reaction=None):
+        if len(skip) > 0:
+            for skip_f in skip:
+                self.omit_folders.append(skip_f)
         up = 0
         found_reaction = False
         for root, dirs, files in os.walk(self.user_base):
@@ -112,10 +113,10 @@ class FolderReader:
                 if self.key_value_pairs_catapp is not None:
                     yield self.key_value_pairs_catapp
             
-    def write(self, skip=None, goto_reaction=None):
+    def write(self, skip=[], goto_reaction=None):
         for key_values in self.read(skip=skip, goto_reaction=goto_reaction):
             with CatappSQLite(self.catapp_db) as db:
-                id = None#db.check(key_values['chemical_composition'], key_values['reaction_energy'])
+                id = db.check(key_values['chemical_composition'], key_values['reaction_energy'])
                 #print 'Allready in catapp db with row id = {}'.format(id)
                 if id is None:
                     id = db.write(key_values)
@@ -136,7 +137,7 @@ class FolderReader:
                 print 'Allready in catapp db with row id = {}'.format(pid)
         return pid
         
-    def update_sqlite(self, skip=None, goto_reaction=None, key_names='all'):
+    def update_sqlite(self, skip=[], goto_reaction=None, key_names='all'):
         for key_values in self.read(skip=skip, goto_reaction=goto_reaction):
             with CatappSQLite(self.catapp_db) as db:
                 id = db.check(key_values['reaction_energy'])
@@ -224,7 +225,7 @@ class FolderReader:
 
     def read_reaction(self, root, files):
         folder_name = root.split('/')[-1]
-        print folder_name
+
         #try:
         self.reaction = get_reaction_from_folder(folder_name)  # reaction dict
         #except:
@@ -296,11 +297,11 @@ class FolderReader:
                         elif self.update:
                             update_ase(self.catapp_db, id, **key_value_pairs)
                         self.ase_ids.update({species: ase_id})
-
-            if found is False:
-                print '{} file is not part of reaction, include as reference'\
-                    .format(f)
-                self.ase_ids.update({chemical_composition_hill + 'gas': ase_id})
+        
+            #if found is False:
+            #    print '{} file is not part of reaction, include as reference'\
+            #        .format(f)
+            #    self.ase_ids.update({chemical_composition_hill + 'gas': ase_id})
 
     def read_metal(self, root):
         self.metal = root.split('/')[-1]
@@ -345,6 +346,7 @@ class FolderReader:
         self.key_value_pairs_catapp = None
         traj_slabs = [f for f in files if f.endswith('.traj') \
                           and 'gas' not in f]
+        print traj_slabs
         #if traj_slabs == []:
         #    return
         if not self.debug:
@@ -419,10 +421,12 @@ class FolderReader:
             id, ase_id = check_in_ase(traj, self.catapp_db)
             found = False
             key_value_pairs.update({'epot': get_energies([traj])})
-            chemical_composition_metal = get_chemical_formula(traj)
 
             if i == ts_i:                
                 found = True
+                self.traj_files.update({'TS': [traj]})
+                self.prefactors.update({'TS': [1]})
+                prefactor_scale.update({'TS': [1]})
                 key_value_pairs.update({'species': 'TS'})
                 if ase_id is None:
                     ase_id = write_ase(traj, self.catapp_db,
@@ -448,10 +452,13 @@ class FolderReader:
                 continue
             
             res_atn = get_atomic_numbers(traj)
+            if not (np.array(res_atn) > 8).any() and (np.array(empty_atn) > 8).any():
+                print "Only molecular species in traj file: {}".format(traj)
+                continue
 
             for atn in empty_atn:
-
                 res_atn.remove(atn)
+
             res_atn = sorted(res_atn)  # residual atomic numbers 
 
             supercell_factor = 1
@@ -533,6 +540,7 @@ class FolderReader:
 
         reaction_energy = None
         activation_energy = None        
+        
         
         reaction_energy, activation_energy = \
             get_reaction_energy(self.traj_files, prefactors_final, 
