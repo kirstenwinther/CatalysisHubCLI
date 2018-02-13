@@ -193,10 +193,11 @@ class CatappPostgreSQL:
 
 
     def write(self, values, table='catapp'):
+
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
-        
+
         #id = self.get_last_id(cur)
         #if self.id is None:
         #    id = self.get_last_id(cur) + 1
@@ -209,7 +210,7 @@ class CatappPostgreSQL:
         
         cur.execute(insert_command)
         id = cur.fetchone()[0]
-
+        
         if self.connection is None:
             con.commit()
             con.close()
@@ -280,9 +281,10 @@ class CatappPostgreSQL:
         return count
 
     def transfer(self, filename_sqlite, start_id=1, write_ase=True,
-                 write_publications=True):
+                 write_publications=True, write_catapp=True):
         con = self.connection or self._connect()
         self._initialize(con)
+        cur = con.cursor()
 
         import ase
         import os
@@ -329,7 +331,6 @@ class CatappPostgreSQL:
             # Publication structures connection
             cur_lite.execute("""SELECT * from publication_structures;""")
             rows = cur_lite.fetchall()
-            cur = con.cursor()
             for row in rows:
                 Npubstruc += 1
                 values= row[:]
@@ -339,44 +340,49 @@ class CatappPostgreSQL:
                 
                 cur.execute(insert_command)
                 # self.write(values, table='publication_structures')
-
+            con.commit()
             
-        n = db.get_last_id(cur_lite)
-        select_ase = """SELECT * from catapp_structures where id={};"""
         Ncat = 0
-        Ncatstruc = 0 
-        for id_lite in range(start_id, n+1):
-            row = db.read(id_lite)
-            if len(row) == 0:
-                continue
-            values = row[0]
+        Ncatstruc = 0
 
-            id = self.check(values[1], values[7]) # values[5], values[6], 
-            if id is not None:
-                print 'Allready in catapp db with row id = {}'.format(id)
-                id = self.update(id, values)
-            else:
-                Ncat += 1
-                id = self.write(values)
-                print 'Written to catapp db row id = {}'.format(id)
+        if write_catapp:
+            n = db.get_last_id(cur_lite)
+            select_ase = """SELECT * from catapp_structures where id={};"""
+            for id_lite in range(start_id, n+1):
+                row = db.read(id_lite)
+                if len(row) == 0:
+                    continue
+                values = row[0]
 
-            cur_lite.execute(select_ase.format(id_lite))
-            rows = cur_lite.fetchall()
-            for row in rows:
-                Ncatstruc += 1
+                id = self.check(values[1], values[7]) # values[5], values[6], 
+                if id is not None:
+                    print 'Allready in catapp db with row ied = {}'.format(id)
+                    id = self.update(id, values)
+                else:
+                    Ncat += 1
+                    id = self.write(values)
+                    print 'Written to catapp db row id = {}'.format(id)
 
-                values = list(row)
+                cur_lite.execute(select_ase.format(id_lite))
+                rows = cur_lite.fetchall()
+                for row in rows:
+                    Ncatstruc += 1
 
-                values[2] = id
-                key_str, value_str = get_key_value_str(values,
-                                                       table='catapp_structures')
-                insert_command = 'INSERT INTO catapp_structures ({}) VALUES ({}) ON CONFLICT DO NOTHING;'.format(key_str, value_str)
+                    values = list(row)
 
-                cur.execute(insert_command)
+                    values[2] = id
+                    key_str, value_str = get_key_value_str(values,
+                                                           table='catapp_structures')
+                    insert_command = 'INSERT INTO catapp_structures ({}) VALUES ({}) ON CONFLICT DO NOTHING;'.format(key_str, value_str)
+
+
+                    cur.execute(insert_command)
                 
+                con.commit() # Commit catapp_structures for each row
 
         for statement in tsvector_update:
             cur.execute(statement)
+                
         if self.connection is None:
             con.commit()
             con.close()
