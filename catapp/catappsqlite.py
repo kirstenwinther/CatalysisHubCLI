@@ -167,7 +167,13 @@ class CatappSQLite:
 
             reaction_species = set(values['reactants'].keys() +
                                    values['products'].keys())
-            assert len(reaction_species) <= len(ase_values), 'ASE ids missing!'
+                        
+            n_split = 0
+            for spec in ase_ids.keys():
+                if '-' in spec:
+                    n_split += 1
+            
+            assert len(reaction_species) <= len(ase_values) + n_split, 'ASE ids missing!'
         else:
             ase_ids = {}
         values = (id,
