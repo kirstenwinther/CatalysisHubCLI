@@ -279,7 +279,8 @@ class CatappPostgreSQL:
 
         return count
 
-    def transfer(self, filename_sqlite, start_id=1):
+    def transfer(self, filename_sqlite, start_id=1, write_ase=True,
+                 write_publications=True):
         con = self.connection or self._connect()
         self._initialize(con)
 
@@ -289,53 +290,55 @@ class CatappPostgreSQL:
         from ase.utils import plural
         password = os.environ['DB_PASSWORD']
         server_name = "postgres://catappuser:{}@catappdatabase.cjlis1fysyzx.us-west-1.rds.amazonaws.com:5432/catappdatabase".format(password)
-        db = ase.db.connect(filename_sqlite)
         nkvp = 0
         nrows = 0
-        with ase.db.connect(server_name, type='postgresql') as db2:
-            for row in db.select():#'', sort=args.sort):cd
-                kvp = row.get('key_value_pairs', {})
-                nkvp -= len(kvp)
-                #kvp.update(add_key_value_pairs)
-                nkvp += len(kvp)
-                db2.write(row, data=row.get('data'), **kvp)
-                nrows += 1
+        if write_ase:
+            db = ase.db.connect(filename_sqlite)
+            with ase.db.connect(server_name, type='postgresql') as db2:
+                for row in db.select():#'', sort=args.sort):cd
+                    kvp = row.get('key_value_pairs', {})
+                    nkvp -= len(kvp)
+                    # kvp.update(add_key_value_pairs)
+                    nkvp += len(kvp)
+                    db2.write(row, data=row.get('data'), **kvp)
+                    nrows += 1
 
-            #print('Inserted %s' % plural(nrows, 'row'))
-
+                # print('Inserted %s' % plural(nrows, 'row'))
+        
         from catappsqlite import CatappSQLite
         db = CatappSQLite(filename_sqlite)
         con_lite = db._connect()
         cur_lite = con_lite.cursor()
 
         # write publications
-        try:
-            npub = db.get_last_pub_id(cur_lite)
-        except:
-            npub = 1
         Npub = 0
-        for id_lite in range(start_id, npub+1):
-            Npub += 1
-            row = db.read(id=id_lite, table='publications')
-            if len(row) == 0:
-                continue
-            values = row[0]
-            pid, pub_id = self.write_publication(values)
-
-        # Publication structures connection
-        cur_lite.execute("""SELECT * from publication_structures;""")
-        rows = cur_lite.fetchall()
-        cur = con.cursor()
         Npubstruc = 0
-        for row in rows:
-            Npubstruc += 1
-            values= row[:]
-            key_str, value_str = get_key_value_str(values,
-                                                   table='publication_structures')       
-            insert_command = 'INSERT INTO publication_structures ({}) VALUES ({}) ON CONFLICT DO NOTHING;'.format(key_str, value_str)
+        if write_publications:
+            try:
+                npub = db.get_last_pub_id(cur_lite)
+            except:
+                npub = 1
+            for id_lite in range(1, npub+1):
+                Npub += 1
+                row = db.read(id=id_lite, table='publications')
+                if len(row) == 0:
+                    continue
+                values = row[0]
+                pid, pub_id = self.write_publication(values)
 
-            cur.execute(insert_command)
-            #self.write(values, table='publication_structures')
+            # Publication structures connection
+            cur_lite.execute("""SELECT * from publication_structures;""")
+            rows = cur_lite.fetchall()
+            cur = con.cursor()
+            for row in rows:
+                Npubstruc += 1
+                values= row[:]
+                key_str, value_str = get_key_value_str(values,
+                                                       table='publication_structures')       
+                insert_command = 'INSERT INTO publication_structures ({}) VALUES ({}) ON CONFLICT DO NOTHING;'.format(key_str, value_str)
+                
+                cur.execute(insert_command)
+                # self.write(values, table='publication_structures')
 
             
         n = db.get_last_id(cur_lite)
