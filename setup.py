@@ -1,15 +1,15 @@
 from setuptools import setup
 
-setup(name='catapp',
+setup(name='cathub',
       version='0.0.1',
-      packages=['catapp'],
+      packages=['cathub'],
       install_requires=[
           'Click',
           'six',
       ],
       entry_points='''
             [console_scripts]
-            catapp=catapp:cli
+            cathub=cathub:cli
         ''',
       long_description=file('README.md').read(),
     )

@@ -2,26 +2,26 @@
 
 Install with pip using
 
-    pip install --user --upgrade git+https://github.com/mhoffman/CatApp-database.git
+    pip install --user --upgrade git+https://github.com/kirstenwinther/CatalysisHubCLI.git
 
 
 ## Usage
 
-Run `catapp`, like so
+Run `cathub`, like so
 
-    catapp --help
+    cathub --help
 
 or with any of its sub-commands, like so
 
-    catapp make_folders_template --help
+    cathub make_folders_template --help
 
 ## Examples
 
 
 To create an .json input file
 
-    catapp make_folders_template project1.json --create-template
+    cathub make_folders_template project1.json --create-template
 
 To create a folder structures from a .json input file
 
-    catapp make_folders_template project1.json
+    cathub make_folders_template project1.json
