@@ -4,7 +4,7 @@ import json
 import numpy as np
 
 init_commands = [
-    """ CREATE TABLE publications (
+    """ CREATE TABLE publication (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     pub_id text UNIQUE,
     title text,
@@ -19,13 +19,13 @@ init_commands = [
     tags text
     );""",
 
-    """CREATE TABLE publication_structures (
+    """CREATE TABLE publication_system (
     ase_id text REFERENCES systems(unique_id),
-    pub_id text REFERENCES publications(pub_id),
+    pub_id text REFERENCES publication(pub_id),
     PRIMARY KEY (pub_id, ase_id)
     );""",
     
-    """CREATE TABLE catapp (
+    """CREATE TABLE reaction (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     chemical_composition text,
     surface_composition text,
@@ -39,27 +39,27 @@ init_commands = [
     dft_functional text,
     username text,
     pub_id text, 
-    FOREIGN KEY (pub_id) REFERENCES publications(pub_id)
+    FOREIGN KEY (pub_id) REFERENCES publication(pub_id)
     );""",
 
-    """ CREATE TABLE catapp_structures (
+    """ CREATE TABLE reaction_system (
     name text,
     ase_id text,
     id integer,
     FOREIGN KEY (ase_id) REFERENCES systems(unique_id),
-    FOREIGN KEY (id) REFERENCES catapp(id)
+    FOREIGN KEY (id) REFERENCES reaction(id)
     );"""
 ]
 
 #index_statements = [
-#    'CREATE INDEX idxpubid ON publications(pub_id)',
-#    'CREATE INDEX idxrecen ON catapp(reaction_energy)',
-#    'CREATE INDEX idxchemcomp ON catapp(chemical_composition)',
-#    'CREATE INDEX idxuser ON catapp(user)',
+#    'CREATE INDEX idxpubid ON publication(pub_id)',
+#    'CREATE INDEX idxrecen ON reaction(reaction_energy)',
+#    'CREATE INDEX idxchemcomp ON reaction(chemical_composition)',
+#    'CREATE INDEX idxuser ON reaction(user)',
 #]
 
 
-class CatappSQLite:
+class CathubSQLite:
     def __init__(self, filename):
         self.filename = filename
         self.initialized = False
@@ -96,6 +96,13 @@ class CatappSQLite:
 
         cur = con.execute(
             'SELECT COUNT(*) FROM sqlite_master WHERE name="catapp"')
+
+        if cur.fetchone()[0] > 0:
+            self.update_names(con)
+            
+        cur = con.execute(
+            'SELECT COUNT(*) FROM sqlite_master WHERE name="reaction"')
+
         if cur.fetchone()[0] == 0:
             for init_command in init_commands:
                 con.execute(init_command)
@@ -105,7 +112,20 @@ class CatappSQLite:
 
         self.initialized = True
 
-    def read(self, id, table='catapp'):
+    def update_names(self, con):
+        name_changes = [
+            'ALTER TABLE catapp rename to reactions;',
+            'ALTER TABLE publications rename to publication',
+            'ALTER TABLE publication_structures rename to publication_system',
+            'ALTER TABLE catapp_structures rename to reaction_system']
+
+        for statement in name_changes:
+            con.execute(statement)
+        con.commit()
+        return
+        
+        
+    def read(self, id, table='reaction'):
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
@@ -143,7 +163,7 @@ class CatappSQLite:
         )
 
         q = ', '.join('?' * len(values))
-        cur.execute('INSERT OR IGNORE INTO publications VALUES ({})'.format(q),
+        cur.execute('INSERT OR IGNORE INTO publication VALUES ({})'.format(q),
                     values)
         return pid
     
@@ -194,14 +214,14 @@ class CatappSQLite:
                   )
 
         q = ', '.join('?' * len(values))
-        cur.execute('INSERT INTO catapp VALUES ({})'.format(q),
+        cur.execute('INSERT INTO reaction VALUES ({})'.format(q),
                     values)
-        catapp_structure_values = []
+        reaction_structure_values = []
         for name, ase_id in ase_ids.items():
-            catapp_structure_values.append([name, ase_id, id])
-            cur.execute('INSERT OR IGNORE INTO publication_structures(ase_id, pub_id) VALUES (?, ?)', [ase_id, pub_id])
-        cur.executemany('INSERT INTO catapp_structures VALUES (?, ?, ?)',
-                        catapp_structure_values)
+            reaction_structure_values.append([name, ase_id, id])
+            cur.execute('INSERT OR IGNORE INTO publication_system(ase_id, pub_id) VALUES (?, ?)', [ase_id, pub_id])
+        cur.executemany('INSERT INTO reaction_system VALUES (?, ?, ?)',
+                        reaction_structure_values)
 
         if self.connection is None:
             con.commit()
@@ -218,7 +238,7 @@ class CatappSQLite:
         key_list, value_list = get_key_value_list(key_names, values)
         N_keys = len(key_list)
         
-        #cur.execute('SELECT * from catapp where id = {}'.format(id))
+        #cur.execute('SELECT * from reaction where id = {}'.format(id))
         #row = cur.fetchall()
         #update_index = []
         #for i, val in enumerate(row[0][1:]):
@@ -233,7 +253,7 @@ class CatappSQLite:
 
         #execute_str = ', '.join('{}={}'.format(key_list[i], value_strlist[i]) for i in update_index)
         
-        update_command = 'UPDATE catapp SET {} WHERE id = {};'\
+        update_command = 'UPDATE reaction SET {} WHERE id = {};'\
             .format(execute_str, id)
 
         cur.execute(update_command)
@@ -244,12 +264,12 @@ class CatappSQLite:
 
 
     def get_last_id(self, cur):
-        cur.execute('SELECT seq FROM sqlite_sequence WHERE name="catapp"')
+        cur.execute('SELECT seq FROM sqlite_sequence WHERE name="reaction"')
         id = cur.fetchone()[0]
         return id
 
     def get_last_pub_id(self, cur):
-        cur.execute('SELECT seq FROM sqlite_sequence WHERE name="publications"')
+        cur.execute('SELECT seq FROM sqlite_sequence WHERE name="publication"')
         id = cur.fetchone()[0]
         return id
     
@@ -257,7 +277,7 @@ class CatappSQLite:
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
-        statement = 'SELECT catapp.id FROM \n catapp \n WHERE \n catapp.chemical_composition=? and catapp.reaction_energy=?'
+        statement = 'SELECT reaction.id FROM \n reaction \n WHERE \n reaction.chemical_composition=? and reaction.reaction_energy=?'
         argument = [chemical_composition, reaction_energy]
         
         cur.execute(statement, argument)
@@ -272,7 +292,7 @@ class CatappSQLite:
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
-        statement = 'SELECT id FROM \n publications \n WHERE \n publications.pub_id=?'
+        statement = 'SELECT id FROM \n publication \n WHERE \n publication.pub_id=?'
         argument = [pub_id]
         
         cur.execute(statement, argument)
@@ -287,7 +307,7 @@ class CatappSQLite:
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
-        statement = 'SELECT id FROM \n publication_structures \n WHERE \n publications.pub_id=? and publications.ase_id=?'
+        statement = 'SELECT id FROM \n publication_system \n WHERE \n publication.pub_id=? and publication.ase_id=?'
         argument = [pub_id, ase_id]
         
         cur.execute(statement, argument)

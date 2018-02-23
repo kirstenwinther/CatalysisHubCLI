@@ -4,7 +4,7 @@ import copy
 import sqlite3
 from sys import argv
 from ase_tools import *
-from catappsqlite import CatappSQLite
+from cathubsqlite import CathubSQLite
 from tools import get_bases
 import glob
 from ase.io.trajectory import convert
@@ -110,38 +110,38 @@ class FolderReader:
             
             if level == self.final_level + up:
                 self.read_final(root, files)
-                if self.key_value_pairs_catapp is not None:
-                    yield self.key_value_pairs_catapp
+                if self.key_value_pairs_reaction is not None:
+                    yield self.key_value_pairs_reaction
             
     def write(self, skip=[], goto_reaction=None):
         for key_values in self.read(skip=skip, goto_reaction=goto_reaction):
-            with CatappSQLite(self.catapp_db) as db:
+            with CathubSQLite(self.cathub_db) as db:
                 id = db.check(key_values['chemical_composition'], key_values['reaction_energy'])
-                #print 'Allready in catapp db with row id = {}'.format(id)
+                #print 'Allready in reaction db with row id = {}'.format(id)
                 if id is None:
                     id = db.write(key_values)
-                    print 'Written to catapp db row id = {}'.format(id)
+                    print 'Written to reaction db row id = {}'.format(id)
                 else:
-                    print 'Allready in catapp db with row id = {}'.format(id)
+                    print 'Allready in reaction db with row id = {}'.format(id)
                 #elif self.update:
-                #    db.update(id, key_value_pairs_catapp)
+                #    db.update(id, key_value_pairs_reaction)
 
     def write_publication(self, pub_data):
-        with CatappSQLite(self.catapp_db) as db:
+        with CathubSQLite(self.cathub_db) as db:
             pid = db.check_publication(self.pub_id)
-            #print 'Allready in catapp db with row id = {}'.format(id)
+            #print 'Allready in reaction db with row id = {}'.format(id)
             if pid is None:
                 pid = db.write_publication(pub_data)
                 print 'Written to publications db row id = {}'.format(pid)
             else:
-                print 'Allready in catapp db with row id = {}'.format(pid)
+                print 'Allready in reaction db with row id = {}'.format(pid)
         return pid
         
     def update_sqlite(self, skip=[], goto_reaction=None, key_names='all'):
         for key_values in self.read(skip=skip, goto_reaction=goto_reaction):
-            with CatappSQLite(self.catapp_db) as db:
+            with CathubSQLite(self.cathub_db) as db:
                 id = db.check(key_values['reaction_energy'])
-                #print 'Allready in catapp db with row id = {}'.format(id)
+                #print 'Allready in reaction db with row id = {}'.format(id)
                 if id is not None:
                     db.update(id, key_values, key_names)
     
@@ -215,7 +215,7 @@ class FolderReader:
                       self.title.split(' ')[0].split('_')[0] + \
                       str(self.year)
 
-        self.catapp_db = '{}{}.db'.format(self.data_base, self.pub_id)
+        self.cathub_db = '{}{}.db'.format(self.data_base, self.pub_id)
         
         pub_data.update({'pub_id': self.pub_id})
         self.pid = self.write_publication(pub_data)
@@ -276,7 +276,7 @@ class FolderReader:
                                     'state': 'gas',
                                     'epot': energy})
 
-            id, ase_id = check_in_ase(traj, self.catapp_db) #self.ase_db)
+            id, ase_id = check_in_ase(traj, self.cathub_db) #self.ase_db)
 
             for key, mollist in self.reaction_atoms.iteritems():
                 for i, molecule in enumerate(mollist):
@@ -292,10 +292,10 @@ class FolderReader:
                         key_value_pairs.update({'species': 
                                                 clear_state(species)})
                         if ase_id is None:
-                            ase_id = write_ase(traj, self.catapp_db,
+                            ase_id = write_ase(traj, self.cathub_db,
                                                self.user, **key_value_pairs)
                         elif self.update:
-                            update_ase(self.catapp_db, id, **key_value_pairs)
+                            update_ase(self.cathub_db, id, **key_value_pairs)
                         self.ase_ids.update({species: ase_id})
         
             #if found is False:
@@ -343,7 +343,7 @@ class FolderReader:
 
 
     def read_final(self, root, files):
-        self.key_value_pairs_catapp = None
+        self.key_value_pairs_reaction = None
         traj_slabs = [f for f in files if f.endswith('.traj') \
                           and 'gas' not in f]
         print traj_slabs
@@ -418,7 +418,7 @@ class FolderReader:
         for i, f in enumerate(traj_slabs):
             traj = '{}/{}'.format(root, f)
             ase_id = None
-            id, ase_id = check_in_ase(traj, self.catapp_db)
+            id, ase_id = check_in_ase(traj, self.cathub_db)
             found = False
             key_value_pairs.update({'epot': get_energies([traj])})
 
@@ -429,10 +429,10 @@ class FolderReader:
                 prefactor_scale.update({'TS': [1]})
                 key_value_pairs.update({'species': 'TS'})
                 if ase_id is None:
-                    ase_id = write_ase(traj, self.catapp_db,
+                    ase_id = write_ase(traj, self.cathub_db,
                                        self.user, **key_value_pairs)
                 elif self.update:
-                    update_ase(self.catapp_db, id,  **key_value_pairs)
+                    update_ase(self.cathub_db, id,  **key_value_pairs)
                 self.ase_ids.update({'TSstar': ase_id})
                 continue
 
@@ -444,10 +444,10 @@ class FolderReader:
                         self.traj_files[key][n] = traj
                 key_value_pairs.update({'species': ''})
                 if ase_id is None:
-                    ase_id = write_ase(traj, self.catapp_db,
+                    ase_id = write_ase(traj, self.cathub_db,
                                        self.user, **key_value_pairs)
                 elif self.update:
-                    update_ase(self.catapp_db, id, **key_value_pairs)                    
+                    update_ase(self.cathub_db, id, **key_value_pairs)                    
                 self.ase_ids.update({'star': ase_id})
                 continue
             
@@ -497,15 +497,15 @@ class FolderReader:
                             
                             species = clear_prefactor(self.reaction[key][n])
 
-                            id, ase_id = check_in_ase(traj, self.catapp_db)
+                            id, ase_id = check_in_ase(traj, self.cathub_db)
                             key_value_pairs.update({'species': 
                                                     clear_state(species),
                                                     'n': n_ads})
                             if ase_id is None:
-                                ase_id = write_ase(traj, self.catapp_db,
+                                ase_id = write_ase(traj, self.cathub_db,
                                                    self.user, **key_value_pairs)
                             elif self.update:
-                                update_ase(self.catapp_db, id, **key_value_pairs)
+                                update_ase(self.cathub_db, id, **key_value_pairs)
                             self.ase_ids.update({species: ase_id})
       
 
@@ -574,20 +574,20 @@ class FolderReader:
                 reaction_info[key].update({r: self.prefactors[key][i]})
 
 #       print chemical_composition, reaction_energy, activation_energy
-        self.key_value_pairs_catapp = {'chemical_composition': chemical_composition,
-                                       'surface_composition': surface_composition,
-                                       'facet': self.facet,
-                                       'sites': self.sites,
-                                       'reactants': reaction_info['reactants'],
-                                       'products': reaction_info['products'], 
-                                       'reaction_energy': reaction_energy,
-                                       'activation_energy': activation_energy,
-                                       'dft_code': self.DFT_code,
-                                       'dft_functional': self.DFT_functional,
-                                       'pub_id': self.pub_id,
-                                       'doi': self.doi,
-                                       'year': int(self.year),
-                                       'ase_ids': self.ase_ids,
-                                       'user': self.user
+        self.key_value_pairs_reaction = {'chemical_composition': chemical_composition,
+                                         'surface_composition': surface_composition,
+                                         'facet': self.facet,
+                                         'sites': self.sites,
+                                         'reactants': reaction_info['reactants'],
+                                         'products': reaction_info['products'], 
+                                         'reaction_energy': reaction_energy,
+                                         'activation_energy': activation_energy,
+                                         'dft_code': self.DFT_code,
+                                         'dft_functional': self.DFT_functional,
+                                         'pub_id': self.pub_id,
+                                         'doi': self.doi,
+                                         'year': int(self.year),
+                                         'ase_ids': self.ase_ids,
+                                         'user': self.user
                                    }
 

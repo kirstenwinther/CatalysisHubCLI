@@ -3,7 +3,7 @@ import psycopg2
 set_schema = 'SET search_path TO stage;'
 
 init_commands = [
-    """CREATE TABLE publications (
+    """CREATE TABLE publication (
     id SERIAL PRIMARY KEY,
     pub_id text UNIQUE,
     title text,
@@ -18,13 +18,13 @@ init_commands = [
     tags jsonb
     );""",
 
-    """CREATE TABLE publication_structures (
+    """CREATE TABLE publication_system (
     ase_id text REFERENCES systems(unique_id) ON DELETE CASCADE,
-    pub_id text REFERENCES publications(pub_id) ON DELETE CASCADE,
+    pub_id text REFERENCES publication(pub_id) ON DELETE CASCADE,
     PRIMARY KEY (pub_id, ase_id)
     );""",
 
-    """CREATE TABLE catapp (
+    """CREATE TABLE reaction (
     id SERIAL PRIMARY KEY, 
     chemical_composition text,
     surface_composition text,
@@ -37,34 +37,34 @@ init_commands = [
     dft_code text,
     dft_functional text,
     username text,
-    pub_id text REFERENCES publications (pub_id) ON DELETE CASCADE
+    pub_id text REFERENCES publication (pub_id) ON DELETE CASCADE
     );""",
 
-    """CREATE TABLE catapp_structures (
+    """CREATE TABLE reaction_system (
     name text, 
     ase_id text REFERENCES systems(unique_id) ON DELETE CASCADE,
-    catapp_id integer REFERENCES catapp(id) ON DELETE CASCADE,
-    PRIMARY KEY (catapp_id, ase_id)
+    reaction_id integer REFERENCES reaction(id) ON DELETE CASCADE,
+    PRIMARY KEY (reaction_id, ase_id)
     )"""
 ]
 
     
 index_statements = [
-    'CREATE INDEX idxpubid ON publications (pub_id);',
-    'CREATE INDEX idxreacten ON catapp (reaction_energy);',
-    'CREATE INDEX idxchemcomp ON catapp (chemical_composition);',
-    'CREATE INDEX idxreact ON catapp USING GIN (reactants);',
-    'CREATE INDEX idxprod ON catapp USING GIN (products);',
-    'CREATE INDEX idxuser ON catapp (username);'
+    'CREATE INDEX idxpubid ON publication (pub_id);',
+    'CREATE INDEX idxreacten ON reaction (reaction_energy);',
+    'CREATE INDEX idxchemcomp ON reaction (chemical_composition);',
+    'CREATE INDEX idxreact ON reaction USING GIN (reactants);',
+    'CREATE INDEX idxprod ON reaction USING GIN (products);',
+    'CREATE INDEX idxuser ON reaction (username);'
 ]
 
 tsvector_statements = [
-    """ALTER TABLE publications ADD COLUMN pubtextsearch tsvector;""",
+    """ALTER TABLE publication ADD COLUMN pubtextsearch tsvector;""",
     
     
     #"""CREATE TRIGGER tsvectorupdatepub BEFORE INSERT OR UPDATE
-    #ON publications FOR EACH ROW EXECUTE PROCEDURE
-    #UPDATE publications SET pubtextsearch = 
+    #ON publication FOR EACH ROW EXECUTE PROCEDURE
+    #UPDATE publication SET pubtextsearch = 
     #to_tsvector('english', coalesce(title, '') || ' ' || 
     #coalesce(authors::text, '') || ' ' || coalesce(year::text, '') || ' ' ||
     #coalesce(tags::text, ''))
@@ -72,24 +72,24 @@ tsvector_statements = [
 
     #     tsvector_update_trigger(pubtextsearch, 'pg_catalog.english', title, authors, year, tags)
 
-    """ALTER TABLE catapp ADD COLUMN textsearch tsvector;""",
+    """ALTER TABLE reaction ADD COLUMN textsearch tsvector;""",
     
     
     #"""CREATE TRIGGER tsvectorupdate BEFORE INSERT OR UPDATE
-    #ON catapp FOR EACH ROW EXECUTE PROCEDURE
+    #ON reaction FOR EACH ROW EXECUTE PROCEDURE
     #tsvector_update_trigger(textsearch, 'pg_catalog.english', chemical_compotision, facet, reactants, products);""",
 
-    'CREATE INDEX idxsearch ON catapp USING GIN (textsearch);'
+    'CREATE INDEX idxsearch ON reaction USING GIN (textsearch);'
     ]
 tsvector_update = [
-    """UPDATE publications SET pubtextsearch = 
+    """UPDATE publication SET pubtextsearch = 
     to_tsvector('simple', coalesce(title, '') || ' ' || 
     coalesce(authors::text, '') || ' ' || coalesce(year::text, '') || ' ' ||
     coalesce(tags::text, ''));
     """,
 
     """
-    UPDATE catapp SET textsearch = 
+    UPDATE reaction SET textsearch = 
     to_tsvector('simple', coalesce(regexp_replace(regexp_replace(chemical_composition, '([0-9])', '', 'g'), '()([A-Z])', '\1 \2','g'), '') || ' ' || 
     coalesce(facet, '') || ' ' || replace(replace(coalesce(reactants::text, '') || ' ' ||
     coalesce(products::text, ''), 'star',''), 'gas', ''));
@@ -97,7 +97,7 @@ tsvector_update = [
     ]
 
 
-class CatappPostgreSQL:
+class CathubPostgreSQL:
     def __init__(self):
         self.initialized = False
         self.connection = None
@@ -137,8 +137,8 @@ class CatappPostgreSQL:
         from ase.db.postgresql import PostgreSQLDatabase
         PostgreSQLDatabase()._initialize(con)
         
-        cur.execute("""SELECT to_regclass('publications');""")
-        if cur.fetchone()[0] == None:  # publications doesn't exist
+        cur.execute("""SELECT to_regclass('publication');""")
+        if cur.fetchone()[0] == None:  # publication doesn't exist
             for init_command in init_commands:
                 print init_command
                 cur.execute(init_command)
@@ -156,7 +156,7 @@ class CatappPostgreSQL:
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
-        cur.execute("drop table catapp_structures, catapp, publication_structures, publications, text_key_values, number_key_values, information, species, systems;")
+        cur.execute("drop table reaction_system, reaction, publication_system, publication, text_key_values, number_key_values, information, species, systems;")
         con.commit()
         con.close()
         return
@@ -165,9 +165,9 @@ class CatappPostgreSQL:
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
-        cur.execute("SELECT COUNT(*) from catapp;")
+        cur.execute("SELECT COUNT(*) from reaction;")
         print cur.fetchall()
-        #cur.execute("""SELECT reactants, products FROM catapp where reference""")
+        #cur.execute("""SELECT reactants, products FROM reaction where reference""")
         #print len(cur.fetchall())
  
     def write_publication(self, pub_values):
@@ -175,13 +175,13 @@ class CatappPostgreSQL:
         self._initialize(con)
         cur = con.cursor()
         pub_id =  pub_values[1].encode('ascii','ignore')
-        cur.execute("""SELECT id from publications where pub_id='{}'""".format(pub_id))
+        cur.execute("""SELECT id from publication where pub_id='{}'""".format(pub_id))
         row = cur.fetchone()
         if row is not None: #len(row) > 0:
             id = row#[0]
         else:
-            key_str, value_str = get_key_value_str(pub_values, 'publications')
-            insert_command = 'INSERT INTO publications ({}) VALUES ({}) RETURNING id;'.format(key_str, value_str)
+            key_str, value_str = get_key_value_str(pub_values, 'publication')
+            insert_command = 'INSERT INTO publication ({}) VALUES ({}) RETURNING id;'.format(key_str, value_str)
 
             cur.execute(insert_command)
             id = cur.fetchone()[0]
@@ -192,7 +192,7 @@ class CatappPostgreSQL:
         return id, pub_id
 
 
-    def write(self, values, table='catapp'):
+    def write(self, values, table='reaction'):
 
         con = self.connection or self._connect()
         self._initialize(con)
@@ -224,7 +224,7 @@ class CatappPostgreSQL:
 
         key_str, value_str = get_key_value_str(values)
 
-        update_command = 'UPDATE catapp SET ({}) = ({}) WHERE id = {};'\
+        update_command = 'UPDATE reaction SET ({}) = ({}) WHERE id = {};'\
             .format(key_str, value_str, id)
 
 
@@ -245,7 +245,7 @@ class CatappPostgreSQL:
         import json
 
         update_command = \
-        """UPDATE catapp SET 
+        """UPDATE reaction SET 
         publication = '{}'
         WHERE 
         publication -> 'authors' = '{}' and year = {} returning id;"""\
@@ -269,7 +269,7 @@ class CatappPostgreSQL:
         cur = con.cursor()
         if doi is None:
             delete_command = \
-                """DELETE from catapp 
+                """DELETE from reaction 
                 WHERE 
                 publication -> 'authors' = '{}' and year = {};""".format(authorlist, year)
         cur.execute(delete_command)
@@ -281,7 +281,7 @@ class CatappPostgreSQL:
         return count
 
     def transfer(self, filename_sqlite, start_id=1, write_ase=True,
-                 write_publications=True, write_catapp=True):
+                 write_publication=True, write_reaction=True):
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
@@ -307,47 +307,47 @@ class CatappPostgreSQL:
 
                 # print('Inserted %s' % plural(nrows, 'row'))
         
-        from catappsqlite import CatappSQLite
-        db = CatappSQLite(filename_sqlite)
+        from cathubsqlite import CathubSQLite
+        db = CathubSQLite(filename_sqlite)
         con_lite = db._connect()
         cur_lite = con_lite.cursor()
 
-        # write publications
+        # write publication
         Npub = 0
         Npubstruc = 0
-        if write_publications:
+        if write_publication:
             try:
                 npub = db.get_last_pub_id(cur_lite)
             except:
                 npub = 1
             for id_lite in range(1, npub+1):
                 Npub += 1
-                row = db.read(id=id_lite, table='publications')
+                row = db.read(id=id_lite, table='publication')
                 if len(row) == 0:
                     continue
                 values = row[0]
                 pid, pub_id = self.write_publication(values)
 
             # Publication structures connection
-            cur_lite.execute("""SELECT * from publication_structures;""")
+            cur_lite.execute("""SELECT * from publication_system;""")
             rows = cur_lite.fetchall()
             for row in rows:
                 Npubstruc += 1
                 values= row[:]
                 key_str, value_str = get_key_value_str(values,
-                                                       table='publication_structures')       
-                insert_command = 'INSERT INTO publication_structures ({}) VALUES ({}) ON CONFLICT DO NOTHING;'.format(key_str, value_str)
+                                                       table='publication_system')       
+                insert_command = 'INSERT INTO publication_system ({}) VALUES ({}) ON CONFLICT DO NOTHING;'.format(key_str, value_str)
                 
                 cur.execute(insert_command)
-                # self.write(values, table='publication_structures')
+                # self.write(values, table='publication_system')
             con.commit()
             
         Ncat = 0
         Ncatstruc = 0
 
-        if write_catapp:
+        if write_reaction:
             n = db.get_last_id(cur_lite)
-            select_ase = """SELECT * from catapp_structures where id={};"""
+            select_ase = """SELECT * from reaction_system where id={};"""
             for id_lite in range(start_id, n+1):
                 row = db.read(id_lite)
                 if len(row) == 0:
@@ -356,12 +356,12 @@ class CatappPostgreSQL:
 
                 id = self.check(values[1], values[7]) # values[5], values[6], 
                 if id is not None:
-                    print 'Allready in catapp db with row ied = {}'.format(id)
+                    print 'Allready in reaction db with row ied = {}'.format(id)
                     id = self.update(id, values)
                 else:
                     Ncat += 1
                     id = self.write(values)
-                    print 'Written to catapp db row id = {}'.format(id)
+                    print 'Written to reaction db row id = {}'.format(id)
 
                 cur_lite.execute(select_ase.format(id_lite))
                 rows = cur_lite.fetchall()
@@ -372,13 +372,13 @@ class CatappPostgreSQL:
 
                     values[2] = id
                     key_str, value_str = get_key_value_str(values,
-                                                           table='catapp_structures')
-                    insert_command = 'INSERT INTO catapp_structures ({}) VALUES ({}) ON CONFLICT DO NOTHING;'.format(key_str, value_str)
+                                                           table='reaction_system')
+                    insert_command = 'INSERT INTO reaction_system ({}) VALUES ({}) ON CONFLICT DO NOTHING;'.format(key_str, value_str)
 
 
                     cur.execute(insert_command)
                 
-                con.commit() # Commit catapp_structures for each row
+                con.commit() # Commit reaction_system for each row
 
         for statement in tsvector_update:
             cur.execute(statement)
@@ -389,10 +389,10 @@ class CatappPostgreSQL:
 
         print 'Inserted into:'
         print '  systems: {}'.format(nrows)
-        print '  publications: {}'.format(Npub)
-        print '  publication_structures: {}'.format(Npubstruc)
-        print '  catapp: {}'.format(Ncat)
-        print '  catapp_structures: {}'.format(Ncatstruc)
+        print '  publication: {}'.format(Npub)
+        print '  publication_system: {}'.format(Npubstruc)
+        print '  reaction: {}'.format(Ncat)
+        print '  reaction_system: {}'.format(Ncatstruc)
             
     def check(self, chemical_composition, reaction_energy):#reactants, products, reaction_energy):
         con = self.connection or self._connect()
@@ -400,7 +400,7 @@ class CatappPostgreSQL:
         cur = con.cursor()
         statement = \
         """SELECT id 
-        FROM catapp WHERE 
+        FROM reaction WHERE 
         (chemical_composition,  reaction_energy) = 
         ('{}', {})""".format(chemical_composition, reaction_energy)
         #argument = [reaction_energy]
@@ -420,7 +420,7 @@ class CatappPostgreSQL:
 
         select_statement = \
         """SELECT distinct publication
-        FROM catapp WHERE 
+        FROM reaction WHERE 
         publication ->> 'doi' is null
         OR
         publication -> 'doi' is null;"""
@@ -430,14 +430,14 @@ class CatappPostgreSQL:
         return pubs
 
         
-def get_key_value_str(values, table='catapp'):
-    key_str = {'catapp': 'chemical_composition, surface_composition, facet, sites, reactants, products, reaction_energy, activation_energy, dft_code, dft_functional, username, pub_id',
-               'publications': 'pub_id, title, authors, journal, volume, number, pages, year, publisher, doi, tags',
-               'catapp_structures': 'name, ase_id, catapp_id',
-               'publication_structures': 'ase_id, pub_id'}
+def get_key_value_str(values, table='reaction'):
+    key_str = {'reaction': 'chemical_composition, surface_composition, facet, sites, reactants, products, reaction_energy, activation_energy, dft_code, dft_functional, username, pub_id',
+               'publication': 'pub_id, title, authors, journal, volume, number, pages, year, publisher, doi, tags',
+               'reaction_system': 'name, ase_id, reaction_id',
+               'publication_system': 'ase_id, pub_id'}
 
     start_index = 1
-    if table == 'publication_structures' or table == 'catapp_structures':
+    if table == 'publication_system' or table == 'reaction_system':
         start_index = 0
     value_str = "'{}'".format(values[start_index])
     for v in values[start_index+1:]:
