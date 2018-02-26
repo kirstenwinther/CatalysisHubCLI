@@ -37,16 +37,15 @@ def main(
 
     #  ---------molecules info-----------
 
-
     reactions=[
-        {'reactants': ['OOHstar'], 'products': [
+        {'reactants': ['OOHstar@top'], 'products': [
             '2.0H2Ogas', '-1.5H2gas', 'star']},
         #{'reactants': ['CCH3'], 'products': ['C', 'CH3']},
         #{'reactants': ['CH3star'], 'products': ['CH3gas', 'star']}
     ],
     surfaces=['Pt'],
     facets=['111'],
-    sites=['top', 'hcp', 'fcc_hcp'],
+
     custom_base=None,
 ):
     """
@@ -68,6 +67,10 @@ def main(
     gas phase species are also involved.
     'gas' if in gas phase
 
+    Include the adsorption site if relevant:
+    In case of adsorbed species, include the site after 'star' as f.ex
+    star@top, star@bridge.
+
     Remember to include the adsorption energy of reaction intermediates, taking
     gas phase molecules as references (preferably H20, H2, CH4, CO, NH3).
     For example, we can write the desorption of CH2 as:
@@ -77,11 +80,9 @@ def main(
     See examples:
 
     reactions = [
-        {'reactants': ['CH2star'], 'products': ['CH4gas', '-H2gas', 'star']},
-        {'reactants': ['CH3star'], 'products': ['CH4gas', '-0.5H2gas', 'star']}
+        {'reactants': ['CH2star@bridge'], 'products': ['CH4gas', '-H2gas', 'star']},
+        {'reactants': ['CH3star@top'], 'products': ['CH4gas', '-0.5H2gas', 'star']}
         ]
-
-
 
     Reaction info is now a list of dictionaries. 
     A new dictionary is required for each reaction, and should include two lists,
@@ -91,7 +92,6 @@ def main(
 # ---------------surface info---------------------
 
     facets # If complicated structure: use term you would use in publication
-    sites # put sites or additional info is necessary. Use '_' in the case of different adsorbates.
     """
 
     #  ----------- You're done!------------------------
@@ -151,8 +151,8 @@ def main(
             for facet in facets:
                 create.append(base_facets + facet + '/')
                 base_sites = create[-1]
-                for site in sites:
-                    create.append(base_sites + site + '/')
+                #for site in sites:
+                #    create.append(base_sites + site + '/')
 
     for path in create:
         if not os.path.exists(path):

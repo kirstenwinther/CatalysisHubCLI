@@ -40,6 +40,8 @@ class FolderReader:
         user_file = '{}winther/user_specific/{}.txt'.format(self.catbase, 
                                                             self.user) 
         self.omit_folders = []
+
+        self.coverages = None
         #print self.site_level
         #if os.path.isfile(user_file):
         #    user_spec = json.load(open(user_file, 'r'))
@@ -578,6 +580,7 @@ class FolderReader:
                                          'surface_composition': surface_composition,
                                          'facet': self.facet,
                                          'sites': self.sites,
+                                         'coverages': self.coverages,
                                          'reactants': reaction_info['reactants'],
                                          'products': reaction_info['products'], 
                                          'reaction_energy': reaction_energy,

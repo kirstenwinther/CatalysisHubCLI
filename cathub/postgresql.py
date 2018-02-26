@@ -29,7 +29,8 @@ init_commands = [
     chemical_composition text,
     surface_composition text,
     facet text,
-    sites text,
+    sites jsonb,
+    coverages jsonb,
     reactants jsonb,
     products jsonb,
     reaction_energy numeric,
@@ -431,7 +432,7 @@ class CathubPostgreSQL:
 
         
 def get_key_value_str(values, table='reaction'):
-    key_str = {'reaction': 'chemical_composition, surface_composition, facet, sites, reactants, products, reaction_energy, activation_energy, dft_code, dft_functional, username, pub_id',
+    key_str = {'reaction': 'chemical_composition, surface_composition, facet, sites, coverages, reactants, products, reaction_energy, activation_energy, dft_code, dft_functional, username, pub_id',
                'publication': 'pub_id, title, authors, journal, volume, number, pages, year, publisher, doi, tags',
                'reaction_system': 'name, ase_id, reaction_id',
                'publication_system': 'ase_id, pub_id'}

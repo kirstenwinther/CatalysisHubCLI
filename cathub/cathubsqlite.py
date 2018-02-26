@@ -31,6 +31,7 @@ init_commands = [
     surface_composition text,
     facet text,
     sites text,
+    coverages text, 
     reactants text,
     products text,
     reaction_energy real,
@@ -133,6 +134,10 @@ class CathubSQLite:
                                                                       table,
                                                                       id))
         row = cur.fetchall()
+
+        if len(row) == 14:  # Old schema  
+            row = row.insert(5, 'None')
+
         return row
 
     
@@ -200,7 +205,8 @@ class CathubSQLite:
                   values['chemical_composition'],
                   values['surface_composition'],
                   values['facet'],
-                  values['sites'],
+                  json.dumps(values['sites']),
+                  json.dumps(values['coverages']),
                   json.dumps(values['reactants']),
                   json.dumps(values['products']),
                   values['reaction_energy'],
