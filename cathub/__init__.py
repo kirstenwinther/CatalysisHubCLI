@@ -180,40 +180,40 @@ def get_reaction_from_folder(folder_name):
 # skip get_reaction_atoms
 
 @cli.group()
-def catappsqlite():
+def cathubsqlite():
     """Command line tools for setting up and inspecting a
-    catapp sqlite database."""
+    cathub sqlite database."""
     pass
 
 
-@catappsqlite.command()
+@cathubsqlite.command()
 @click.argument('filename')
 def init(filename):
-    """Initialize a CatApp database."""
-    import catappsqlite
-    db = catappsqlite.CatappSQLite(filename)
+    """Initialize a Cathub database."""
+    import cathubsqlite
+    db = cathubsqlite.CathubSQLite(filename)
     con = db._connect()
     db._initialize(con)
 
 
-@catappsqlite.command()
+@cathubsqlite.command()
 @click.argument('filename')
 @click.argument('row_id', default=0)
 def read(filename, row_id):
-    import catappsqlite
-    db = catappsqlite.CatappSQLite(filename)
+    import cathubsqlite
+    db = cathubsqlite.CathubSQLite(filename)
     click.echo(db.read(row_id))
 
 # skip write
 
 
-@catappsqlite.command()
+@cathubsqlite.command()
 @click.argument('reaction_energy', type=float)
 def check(reaction_energy):
-    """Check if reaction energy <energy> is already present in catapp db."""
-    import catappsqlite
-    db = catappsqlite.CatappSQLite(filename)
-    click.echo(catappsqlite.check(reaction_energy))
+    """Check if reaction energy <energy> is already present in cathub db."""
+    import cathubsqlite
+    db = cathubsqlite.CathubSQLite(filename)
+    click.echo(cathubsqlite.check(reaction_energy))
 
 
 @cli.command()
@@ -361,7 +361,7 @@ def make_folders_template(create_template, template, custom_base, ):
 
 @cli.command()
 def postgresql():
-    """Create a basic PostgreSQL database with CatApp schema."""
+    """Create a basic PostgreSQL database with Cathub schema."""
 
 
 @cli.command()

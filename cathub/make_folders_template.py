@@ -157,3 +157,6 @@ def main(
     for path in create:
         if not os.path.exists(path):
             os.mkdir(path)
+
+if __name__ == "__main__":
+    main()
