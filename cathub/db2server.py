@@ -1,9 +1,9 @@
 from sys import argv
-from postgresql import CatappPostgreSQL
+from postgresql import CathubPostgreSQL
 
 def main(dbfile):
     db = CathubPostgreSQL()
-    db.transfer(db_file)
+    db.transfer(dbfile)
 
 dbfile = argv[1]
 
