@@ -287,10 +287,8 @@ class CathubPostgreSQL:
         self._initialize(con)
         cur = con.cursor()
 
-        import ase
         import os
-        from ase.db import *
-        from ase.utils import plural
+        import ase.db
         password = os.environ['DB_PASSWORD']
         server_name = "postgres://catappuser:{}@catappdatabase.cjlis1fysyzx.us-west-1.rds.amazonaws.com:5432/catappdatabase".format(password)
         nkvp = 0
@@ -305,8 +303,6 @@ class CathubPostgreSQL:
                     nkvp += len(kvp)
                     db2.write(row, data=row.get('data'), **kvp)
                     nrows += 1
-
-                # print('Inserted %s' % plural(nrows, 'row'))
         
         from cathubsqlite import CathubSQLite
         db = CathubSQLite(filename_sqlite)
@@ -355,7 +351,7 @@ class CathubPostgreSQL:
                     continue
                 values = row[0]
 
-                id = self.check(values[1], values[7]) # values[5], values[6], 
+                id = self.check(values[1], values[8]) # values[5], values[6], 
                 if id is not None:
                     print 'Allready in reaction db with row ied = {}'.format(id)
                     id = self.update(id, values)
