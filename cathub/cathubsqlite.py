@@ -195,7 +195,7 @@ class CathubSQLite:
                         
             n_split = 0
             for spec in ase_ids.keys():
-                if '-' in spec:
+                if '_' in spec:
                     n_split += 1
             
             assert len(reaction_species) <= len(ase_values) + n_split, 'ASE ids missing!'
