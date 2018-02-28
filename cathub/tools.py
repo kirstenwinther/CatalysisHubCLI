@@ -62,8 +62,8 @@ def check_reaction(reactants, products):
     folder structure.
     list of reactants -> list of products
     """
-    reactants = [reactant.strip('star').strip('gas') for reactant in reactants]
-    products = [product.strip('star').strip('gas') for product in products]
+    reactants = [reactant.split('@')[0].strip('star').strip('gas') for reactant in reactants]
+    products = [product.split('@')[0].strip('star').strip('gas') for product in products]
 
     reactant_atoms = [extract_atoms(reactant) for reactant in reactants]
     product_atoms = [extract_atoms(product) for product in products]
