@@ -13,16 +13,15 @@ from ase import db
 
 
 class FolderReader:
-    def __init__(self, user=None, debug=False, strict=False, verbose=False,
+    def __init__(self, folder_name, debug=False, strict=False, verbose=False,
                  update=True):
-        self.user = user
         self.debug = debug
         self.strict = strict
         self.verbose = verbose
         self.update = update
         
         self.catbase, self.data_base, self.user, self.user_base \
-            = get_bases(user=user)
+            = get_bases(folder_name=folder_name)
         self.user_base_level = len(self.user_base.split("/"))
         
         omit_folders = []
@@ -543,14 +542,17 @@ class FolderReader:
         reaction_energy = None
         activation_energy = None        
         
-        
-        reaction_energy, activation_energy = \
-            get_reaction_energy(self.traj_files, prefactors_final, 
-                                self.prefactors_TS)    
-
-        #except:
-        #    print 'ERROR: reaction energy failed: {}'.format(root)
-        #    continue
+        try:
+            reaction_energy, activation_energy = \
+                get_reaction_energy(self.traj_files, prefactors_final, 
+                                    self.prefactors_TS)
+    
+        except:
+            if debug:
+                print 'ERROR: reaction energy failed for files in: {}'.format(root)
+                continue
+            else:
+                raise RuntimeError, 'Reaction energy failed for files in: {}'.format(root)
                 
         expr = -10 < reaction_energy < 10
         
