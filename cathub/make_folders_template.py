@@ -38,7 +38,7 @@ def main(
     #  ---------molecules info-----------
 
     reactions=[
-        {'reactants': ['OOHstar@top'], 'products': [
+        {'reactants': ['OOHstar@ontop'], 'products': [
             '2.0H2Ogas', '-1.5H2gas', 'star']},
         #{'reactants': ['CCH3'], 'products': ['C', 'CH3']},
         #{'reactants': ['CH3star'], 'products': ['CH3gas', 'star']}
@@ -48,6 +48,7 @@ def main(
 
     custom_base=None,
 ):
+
     """
     Dear all
 
@@ -89,7 +90,7 @@ def main(
     'reactants' and 'products'. Remember to include a minus sign in the name when
     relevant.
 
-# ---------------surface info---------------------
+    # ---------------surface info---------------------
 
     facets # If complicated structure: use term you would use in publication
     """
