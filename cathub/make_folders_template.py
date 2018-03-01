@@ -33,19 +33,19 @@ def main(
     publisher='',
     doi='',
     tags=[],
-    DFT_code='',  # for example 'Quantum ESPRESSO'
-    DFT_functional='',  # For example 'BEEF-vdW'
+    DFT_code='Quantum ESPRESSO',  # for example 'Quantum ESPRESSO'
+    DFT_functional='BEEF-vdW',  # For example 'BEEF-vdW'
 
     #  ---------molecules info-----------
 
     reactions=[
-        {'reactants': ['OOHstar@ontop'], 'products': [
-            '2.0H2Ogas', '-1.5H2gas', 'star']},
+        {'reactants': ['2.0H2Ogas', '-1.5H2gas', 'star'], 
+         'products': ['OOHstar@ontop']},
         #{'reactants': ['CCH3'], 'products': ['C', 'CH3']},
         #{'reactants': ['CH3star'], 'products': ['CH3gas', 'star']}
     ],
-    bulk_compositions=['Pt'],
-    crystal_structures=['fcc'],
+    bulk_compositions=['Pt', 'Ag'],
+    crystal_structures=['fcc', 'hcp'],
     facets=['111'],
     custom_base=None,
     ):
@@ -136,40 +136,79 @@ def main(
     pub_txt = publication_base + 'publication.txt'
     json.dump(publication_dict, open(pub_txt, 'wb'))
 
-    create = []  # list of directories to be made
-    create.append(publication_base + DFT_code + '/')
-    create.append(create[-1] + DFT_functional + '/')
-    bulk_base = create[-1] + '/'
-    create.append(create[-1] + '/gas')
-    #base_reactions = create[-1]
+    
+    def create(path):
+        if not os.path.exists(path):
+            os.mkdir(path)
+        return path
+
+    base = create(publication_base + DFT_code + '/')
+    bulk_base = create(base + DFT_functional + '/')
+    gas_base = create(bulk_base + '/gas/')
+
+    gas_names = []
+    ads_names = []
+    from ase_tools import get_state, clear_state, clear_prefactor
+    for i in range(len(reactions)):
+        rnames = [r.split('@')[0] for r in reactions[i]['reactants'] + 
+                  reactions[i]['products']]
+        states = [get_state(r) for r in rnames]        
+        gas_names += [clear_state(clear_prefactor(rnames[i]))
+                      for i in range(len(states)) if states[i] == 'gas']
+
+        
+    for name in set(gas_names):
+        with open(gas_base + 'MISSING: {}_gas.traj'.format(name), 'w'):
+            pass
 
     for bulk in bulk_compositions:
         for crystal_structure in crystal_structures:
-            create.append(bulk_base + bulk + '_' + crystal_structure + '/')
-            #create.append(create[-1] + '/bulk')
-            facet_base = create[-1] 
-            
+            bulk_name = bulk + '_' + crystal_structure
+            facet_base = create(bulk_base + bulk_name + '/')
+            with open(facet_base + 'MISSING: {}_bulk.traj'.format(bulk_name), 'w'):
+                pass
+
             for facet in facets:
-                create.append(facet_base + facet + '/')
-                reaction_base = create[-1]
+                reaction_base = create(facet_base + facet + '/')
+                with open(reaction_base + 'MISSING: empty_slab.traj'.format(bulk_name), 'w'):
+                    pass
+
                 for i in range(len(reactions)):
                     rname = '_'.join(reactions[i]['reactants'])
                     pname = '_'.join(reactions[i]['products'])
                     reaction_name = '__'.join([rname, pname])
-                    create.append(reaction_base + reaction_name + '/')
-                
-    for path in create:
-        if not os.path.exists(path):
-            os.mkdir(path)
+                    base = create(reaction_base + reaction_name + '/')      
+                    rnames = [r.split('@')[0] for r in reactions[i]['reactants'] + 
+                              reactions[i]['products']]
+                    states = [get_state(r) for r in rnames]
+        
+                    ads_names = [clear_prefactor(clear_state(rnames[i])) 
+                                 for i in range(len(states)) if states[i] == 'star']
 
-    gas_names = []
-    adsorbed_names = []
-    for i in range(len(reactions)):
-        rnames = [r.split('@')[0] for r in reactions[i]['reactants']]
-        pnames = [p..split('@')[0] for p in reactions[i]['products']]
-        
-        print rnames, pnames
-        
+                    for ads in ads_names:
+                        if ads == '':
+                            continue
+                        with open(base + 'MISSING: {}.traj'.format(ads), 'w'):
+                            pass
+
+def diagnose(folder):
+    miss_list = []
+    for root, dirs, files in os.walk(folder):
+        for file in files:
+            if 'MISSING: ' in file:
+                traj = file.replace('MISSING: ', '') + '.traj'
+                if os.path.isfile(root + '/' + traj):
+                    print 'found {}'.format(traj)
+                    os.remove(root + '/' + file)
+                else:
+                    miss_list.append(traj)
+    
+    if len(miss_list) > 0:
+        print 'Files missing'
+        print miss_list
+    else:
+        print 'all files there!'
+    return 
     
 if __name__ == "__main__":
     main()
