@@ -32,6 +32,7 @@ def main(
     year='2017',  # year required
     publisher='',
     doi='',
+    tags=[],
     DFT_code='',  # for example 'Quantum ESPRESSO'
     DFT_functional='',  # For example 'BEEF-vdW'
 
@@ -43,11 +44,11 @@ def main(
         #{'reactants': ['CCH3'], 'products': ['C', 'CH3']},
         #{'reactants': ['CH3star'], 'products': ['CH3gas', 'star']}
     ],
-    surfaces=['Pt'],
+    bulk_compositions=['Pt'],
+    crystal_structures=['fcc'],
     facets=['111'],
-
     custom_base=None,
-):
+    ):
 
     """
     Dear all
@@ -119,7 +120,7 @@ def main(
     if not os.path.exists(publication_base):
         os.mkdir(publication_base)
 
-# save publication info to publications.txt
+    # save publication info to publications.txt
     publication_dict = {'title': title,
                         'authors': authors,
                         'journal': journal,
@@ -128,7 +129,8 @@ def main(
                         'pages': pages,
                         'year': year,
                         'publisher': publisher,
-                        'doi': doi
+                        'doi': doi,
+                        'tags': tags
                         }
 
     pub_txt = publication_base + 'publication.txt'
@@ -137,27 +139,37 @@ def main(
     create = []  # list of directories to be made
     create.append(publication_base + DFT_code + '/')
     create.append(create[-1] + DFT_functional + '/')
+    bulk_base = create[-1] + '/'
+    create.append(create[-1] + '/gas')
+    #base_reactions = create[-1]
 
-    base_reactions = create[-1]
-
-    for i in range(len(reactions)):
-        rname = '_'.join(reactions[i]['reactants'])
-        pname = '_'.join(reactions[i]['products'])
-        reaction_name = '__'.join([rname, pname])
-        create.append(base_reactions + reaction_name + '/')
-        base_surfaces = create[-1]
-        for surface in surfaces:
-            create.append(base_surfaces + surface + '/')
-            base_facets = create[-1]
+    for bulk in bulk_compositions:
+        for crystal_structure in crystal_structures:
+            create.append(bulk_base + bulk + '_' + crystal_structure + '/')
+            #create.append(create[-1] + '/bulk')
+            facet_base = create[-1] 
+            
             for facet in facets:
-                create.append(base_facets + facet + '/')
-                base_sites = create[-1]
-                #for site in sites:
-                #    create.append(base_sites + site + '/')
-
+                create.append(facet_base + facet + '/')
+                reaction_base = create[-1]
+                for i in range(len(reactions)):
+                    rname = '_'.join(reactions[i]['reactants'])
+                    pname = '_'.join(reactions[i]['products'])
+                    reaction_name = '__'.join([rname, pname])
+                    create.append(reaction_base + reaction_name + '/')
+                
     for path in create:
         if not os.path.exists(path):
             os.mkdir(path)
 
+    gas_names = []
+    adsorbed_names = []
+    for i in range(len(reactions)):
+        rnames = [r.split('@')[0] for r in reactions[i]['reactants']]
+        pnames = [p..split('@')[0] for p in reactions[i]['products']]
+        
+        print rnames, pnames
+        
+    
 if __name__ == "__main__":
     main()

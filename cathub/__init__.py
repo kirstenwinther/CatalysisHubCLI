@@ -118,7 +118,8 @@ def make_folders(create_template, template, custom_base, ):
                 {'reactants': ['CCH3star@bridge'], 'products': ['Cstar@hollow', 'CH3star@ontop']},
                 {'reactants': ['CH3gas', 'star'], 'products': ['CH3star@ontop']}
         ],
-        'surfaces': ['Pt'],
+        'bulk_compositions': ['Pt'],
+        'crystal_structures': ['fcc', 'hcp'],
         'facets': ['111']
     }
     if template is not None:
@@ -145,7 +146,8 @@ def make_folders(create_template, template, custom_base, ):
                 dft_code = template_data['DFT_code']
                 dft_functional = template_data['DFT_functional']
                 reactions = template_data['reactions']
-                surfaces = template_data['surfaces']
+                crystal_structures = template_data['crystal_structures']
+                bulk_compositions = template_data['bulk_compositions']
                 facets = template_data['facets']
 
     make_folders_template.main(
@@ -164,7 +166,8 @@ def make_folders(create_template, template, custom_base, ):
         reactions=eval(reactions) if isinstance(
             reactions, six.string_types) else reactions,
         custom_base=custom_base,
-        surfaces=surfaces,
+        bulk_compositions=bulk_compositions,
+        crystal_structures=crystal_structures,
         facets=facets
     )
 
