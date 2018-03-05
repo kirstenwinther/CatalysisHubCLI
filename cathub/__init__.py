@@ -39,7 +39,68 @@ def db2server(dbfile, start_id, write_reaction, write_ase, write_publication,
                    write_reaction_system=write_reaction_system)
 
 
+reaction_columns = ['chemicalComposition', 'surfaceComposition',
+                    'facet', 'sites', 'coverages', 'reactants', 'products', 'Equation',
+                    'reactionEnergy', 'activationEnergy', 'dftCode', 'dftFunctional',
+                    'username', 'pubId', 'reactionSystems', 'systems', 'publication']
+publication_columns = ['pubId', 'title', 'authors', 'journal', 'year', 'doi', 'tags']
 
+@cli.command()
+@click.option('--columns', '-c',
+              default=('chemicalComposition', 'Equation', 'reactionEnergy'),
+              type=click.Choice(reaction_columns),
+              multiple=True)
+@click.option('--n_results', default=10)
+@click.option('--queries', '-q',  default={}, multiple='True',
+              help="Make a selection on one of the columns: {}\n Examples: \n -q chemicalComposition=~Pt for surfaces containing Pt \n -q reactants=CO for reactions with CO as a reactants".format(reaction_columns))
+def reactions(columns, n_results, queries):
+    import query
+    if not isinstance(queries, dict):
+        query_dict = {}
+        for q in queries:
+            key, value = q.split('=')
+            if key == 'distinct':
+                if value in ['True', 'true']:
+                    query_dict.update({key: True})
+                    continue
+            try:
+                value = int(value)
+                query_dict.update({key: value})
+            except:
+                query_dict.update({key: '{}'.format(value)})
+    #columns = [columns]
+    query.main(table='reactions', columns=columns, n_results=n_results, queries=query_dict)
+
+
+    
+@cli.command()
+@click.option('--columns', '-c',
+              default = ('title', 'authors', 'journal', 'year'),
+              type=click.Choice(publication_columns),
+              multiple=True)
+@click.option('--n_results', default=10)
+@click.option('--queries', '-q', default={}, multiple=True,
+              help="Make a selection on one of the columns: {}\n Examples: \n -q: \n title=~Evolution \n authors=~bajdich \n year=2017".format(publication_columns))
+def publications(columns, n_results, queries):
+    import query
+    if not isinstance(queries, dict):
+        query_dict = {}
+        for q in queries:
+            key, value = q.split('=')
+            if key == 'distinct':
+                if value in ['True', 'true']:
+                    query_dict.update({key: True})
+                    continue
+            try:
+                value = int(value)
+                query_dict.update({key: value})
+            except:
+                query_dict.update({key: '{}'.format(value)})
+    
+    query.main(table='publications', columns=columns, n_results=n_results, queries=query_dict)
+
+
+    
 @cli.command()
 @click.argument('template')
 @click.option('--create-template', is_flag=True, help="Create an empty template file.")
