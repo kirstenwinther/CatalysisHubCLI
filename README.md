@@ -25,3 +25,17 @@ To create an .json input file
 To create a folder structures from a .json input file
 
     cathub make_folders_template project1.json
+
+Querying the Catalysis Hub database:
+
+    cathub reactions -q reactants=CO -q chemicalComposition=~Pt
+
+    cathub publications -q title=~Evolution -q year=2017
+
+Reading folders into sqlite3 db file:
+
+    cathub folder2db <foldername>
+
+Sending the data to the Catalysis Hub server:
+
+    cathub db2server <dbfile>
