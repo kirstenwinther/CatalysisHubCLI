@@ -62,8 +62,8 @@ def check_reaction(reactants, products):
     folder structure.
     list of reactants -> list of products
     """
-    reactants = [reactant.strip('star').strip('gas') for reactant in reactants]
-    products = [product.strip('star').strip('gas') for product in products]
+    reactants = [reactant.split('@')[0].strip('star').strip('gas') for reactant in reactants]
+    products = [product.split('@')[0].strip('star').strip('gas') for product in products]
 
     reactant_atoms = [extract_atoms(reactant) for reactant in reactants]
     product_atoms = [extract_atoms(product) for product in products]
@@ -87,7 +87,7 @@ def check_reaction(reactants, products):
     #assert r_stars == p_stars, 'Please match the number of surfaces on each side. Left side: {} *s, right side: {} *s'.format(r_stars, p_stars)
 
 
-def get_bases(user=None):
+def get_bases(folder_name):
     import os
     if 'SHERLOCK' in os.environ:
         sherlock = os.environ['SHERLOCK']
@@ -98,14 +98,17 @@ def get_bases(user=None):
 
     elif 'SLAC_ENVIRON' in os.environ:        
         catbase = '/nfs/slac/g/suncatfs/data_catapp/'
-    
+    else:
+        catbase = './'
+
     if os.environ['USER'] == 'winther':
         data_base = catbase + 'winther/databases/'
+        user = folder_name
     else:
         user = os.environ['USER']
-        data_base = catbase + user + '/'
+        data_base = catbase + folder_name + '/'
 
-    user_base = catbase + user
+    user_base = catbase + folder_name
 
 
     return catbase, data_base, user, user_base

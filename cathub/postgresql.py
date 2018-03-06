@@ -29,7 +29,8 @@ init_commands = [
     chemical_composition text,
     surface_composition text,
     facet text,
-    sites text,
+    sites jsonb,
+    coverages jsonb,
     reactants jsonb,
     products jsonb,
     reaction_energy numeric,
@@ -281,15 +282,14 @@ class CathubPostgreSQL:
         return count
 
     def transfer(self, filename_sqlite, start_id=1, write_ase=True,
-                 write_publication=True, write_reaction=True):
+                 write_publication=True, write_reaction=True,  
+                 write_reaction_system=True):
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
 
-        import ase
         import os
-        from ase.db import *
-        from ase.utils import plural
+        import ase.db
         password = os.environ['DB_PASSWORD']
         server_name = "postgres://catappuser:{}@catappdatabase.cjlis1fysyzx.us-west-1.rds.amazonaws.com:5432/catappdatabase".format(password)
         nkvp = 0
@@ -304,8 +304,6 @@ class CathubPostgreSQL:
                     nkvp += len(kvp)
                     db2.write(row, data=row.get('data'), **kvp)
                     nrows += 1
-
-                # print('Inserted %s' % plural(nrows, 'row'))
         
         from cathubsqlite import CathubSQLite
         db = CathubSQLite(filename_sqlite)
@@ -354,9 +352,9 @@ class CathubPostgreSQL:
                     continue
                 values = row[0]
 
-                id = self.check(values[1], values[7]) # values[5], values[6], 
+                id = self.check(values[1], values[6], values[7], values[8]) # values[5], values[6], 
                 if id is not None:
-                    print 'Allready in reaction db with row ied = {}'.format(id)
+                    print 'Allready in reaction db with row id = {}'.format(id)
                     id = self.update(id, values)
                 else:
                     Ncat += 1
@@ -365,18 +363,17 @@ class CathubPostgreSQL:
 
                 cur_lite.execute(select_ase.format(id_lite))
                 rows = cur_lite.fetchall()
-                for row in rows:
-                    Ncatstruc += 1
+                if write_reaction_system:
+                    for row in rows:
+                        Ncatstruc += 1
+                        values = list(row)
 
-                    values = list(row)
-
-                    values[2] = id
-                    key_str, value_str = get_key_value_str(values,
-                                                           table='reaction_system')
-                    insert_command = 'INSERT INTO reaction_system ({}) VALUES ({}) ON CONFLICT DO NOTHING;'.format(key_str, value_str)
-
-
-                    cur.execute(insert_command)
+                        values[2] = id
+                        key_str, value_str = get_key_value_str(values,
+                                                               table='reaction_system')
+                        insert_command = 'INSERT INTO reaction_system ({}) VALUES ({}) ON CONFLICT DO NOTHING;'.format(key_str, value_str)
+                        
+                        cur.execute(insert_command)
                 
                 con.commit() # Commit reaction_system for each row
 
@@ -394,15 +391,15 @@ class CathubPostgreSQL:
         print '  reaction: {}'.format(Ncat)
         print '  reaction_system: {}'.format(Ncatstruc)
             
-    def check(self, chemical_composition, reaction_energy):#reactants, products, reaction_energy):
+    def check(self, chemical_composition, reactants, products, reaction_energy):
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
         statement = \
         """SELECT id 
         FROM reaction WHERE 
-        (chemical_composition,  reaction_energy) = 
-        ('{}', {})""".format(chemical_composition, reaction_energy)
+        (chemical_composition,  reactants, products, reaction_energy) = 
+        ('{}', '{}', '{}', {})""".format(chemical_composition, reactants, products, reaction_energy)
         #argument = [reaction_energy]
         cur.execute(statement)
         rows = cur.fetchall()
@@ -431,7 +428,7 @@ class CathubPostgreSQL:
 
         
 def get_key_value_str(values, table='reaction'):
-    key_str = {'reaction': 'chemical_composition, surface_composition, facet, sites, reactants, products, reaction_energy, activation_energy, dft_code, dft_functional, username, pub_id',
+    key_str = {'reaction': 'chemical_composition, surface_composition, facet, sites, coverages, reactants, products, reaction_energy, activation_energy, dft_code, dft_functional, username, pub_id',
                'publication': 'pub_id, title, authors, journal, volume, number, pages, year, publisher, doi, tags',
                'reaction_system': 'name, ase_id, reaction_id',
                'publication_system': 'ase_id, pub_id'}
