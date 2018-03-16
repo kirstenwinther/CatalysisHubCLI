@@ -10,8 +10,9 @@ def cli():
 @cli.command()
 @click.argument('folder_name')
 @click.option('--debug', default=False)
-@click.option('--skip_folders', default='', help="""subfolders not to read, given as the name of a single folder, or a string with names of more folders seperated by ', '""")
-def folder2db(folder_name, debug, skip_folders):
+@click.option('--skip-folders', default='', help="""subfolders not to read, given as the name of a single folder, or a string with names of more folders seperated by ', '""")
+@click.option('--goto-reaction', help="""name of reaction folder to skip to""")
+def folder2db(folder_name, debug, skip_folders, goto_reaction):
     import os
     import folder2db
 
@@ -19,7 +20,7 @@ def folder2db(folder_name, debug, skip_folders):
     for s in skip_folders.split(', '):
         for sk in s.split(','):
             skip.append(sk)
-    folder2db.main(folder_name, debug, skip)
+    folder2db.main(folder_name, debug, skip, goto_reaction)
 
 
 @cli.command()
