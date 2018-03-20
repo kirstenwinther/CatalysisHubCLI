@@ -1,8 +1,9 @@
 from sys import argv
 from postgresql import CathubPostgreSQL
+import os
 
 def main(user):
-    db = CathubPostgreSQL(password='catappdb')  
+    db = CathubPostgreSQL(password=os.environ['DB_PASSWORD0'])  
     db.create_user(user)
 
 if __name__ == '__main__':
