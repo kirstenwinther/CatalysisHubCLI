@@ -35,7 +35,7 @@ def check_traj(filename, strict=True, verbose=True):
                 print 'Converting to new ase format!'
             atoms = read_ase(filename)
         except:
-            print 'Could not read .traj file: {}'.format(filename)
+            print 'Could not read traj file: {}'.format(filename)
             return False
 
     try:
@@ -189,7 +189,8 @@ def get_state(name):
     return state
 
 
-def get_reaction_energy(traj_files, prefactors, prefactors_TS):
+def get_reaction_energy(traj_files, reaction_atoms, states, 
+                        prefactors, prefactors_TS):
 
     energies = {}
     for key in traj_files.keys():
@@ -198,20 +199,37 @@ def get_reaction_energy(traj_files, prefactors, prefactors_TS):
         for i, traj in enumerate(trajlist):
             energies[key][i] = prefactors[key][i] * get_energy(traj)
 
+    # Reaction energy:        
     energy_reactants = np.sum(energies['reactants'])
     energy_products = np.sum(energies['products'])
 
     reaction_energy = energy_products - energy_reactants
 
+    # Activation energy
     if 'TS' in traj_files.keys():
+        # Is a different empty surface used for the TS? 
+        if 'TSempty' in traj_files.keys():
+            for key in reaction_atoms.keys():
+                if '' in  reaction_atoms[key]:
+                    index = reaction_atoms[key].index('')
+                    traj_empty = traj_files[key][index]
+            traj_tsempty =  traj_files['TSempty'][0]
+            # print traj_tsempty, traj_empty
+            tsemptydiff = get_energy(traj_tsempty) - get_energy(traj_empty)
+        
         for i, traj in enumerate(traj_files['reactants']):
-            energies['reactants'][i] = prefactors_TS[
-                'reactants'][i] * get_energy(traj)
+            energies['reactants'][i] = prefactors_TS['reactants'][i]\
+                * get_energy(traj)
+            if 'TSempty' in traj_files.keys() and \
+                    states['reactants'][i] == 'star':
+                energies['reactants'][i] += prefactors_TS['reactants'][i]\
+                    * tsemptydiff     
         energy_reactants = np.sum(energies['reactants'])
         energy_TS = energies['TS'][0]
         activation_energy = energy_TS - energy_reactants
     else:
         activation_energy = None
+
     return reaction_energy, activation_energy
 
 
@@ -489,12 +507,23 @@ def get_reaction_atoms(reaction):
             index = states[key].index('star')
             prefactors[key][index] += diff
             # if key == 'reactants':
-            #     prefactors_TS[key]['star'] += 1
+            #     prefactors_TS[key]['star'] += 1  
 
-    if n_r > 1:
-        if len([s for s in states['reactants'] if s =='star']) > 1:
-            prefactors_TS['reactants'][-1] = 0
-
+    if n_r > 1: # Balance slabs for transition state
+        count_empty = 0
+        if '' in reaction_atoms['reactants']:
+            index = reaction_atoms['reactants'].index('')
+            count_empty = prefactors_TS['reactants'][index]
+            prefactors_TS['reactants'][index] = -(n_r - count_empty -1)
+        else:
+            reaction_atoms['reactants'].append('')
+            prefactors['reactants'].append(0)
+            states['reactants'].append('star')
+            prefactors_TS['reactants'].append(-n_r + 1)            
+    else:
+        if '' in reaction_atoms['reactants']:
+            index = reaction_atoms['reactants'].index('')
+            prefactors_TS['reactants'][index] = 1
 
     return reaction_atoms, prefactors, prefactors_TS, states
 
