@@ -1,4 +1,5 @@
 import psycopg2
+import os
 
 set_schema = 'SET search_path TO stage;'
 
@@ -99,17 +100,26 @@ tsvector_update = [
 
 
 class CathubPostgreSQL:
-    def __init__(self):
+    def __init__(self, user='catappuser', password=None):
+        print 'hep'
         self.initialized = False
         self.connection = None
         self.id = None
-
+        if user == 'catappuser':
+            self.schema = 'stage'
+        else:
+            self.schema = user
+        self.user=user
+                
+        if password is None:
+            password = os.environ['DB_PASSWORD']
+        self.password=password
+        
     def _connect(self):
         import os
-        password = os.environ['DB_PASSWORD']
         con = psycopg2.connect(host="catappdatabase.cjlis1fysyzx.us-west-1.rds.amazonaws.com", 
-                               user='catappuser',
-                               password=password,
+                               user=self.user,
+                               password=self.password,
                                port=5432,
                                database='catappdatabase')
         
@@ -130,8 +140,10 @@ class CathubPostgreSQL:
 
     def _initialize(self, con):
         if self.initialized:
-            return
+            return        
         cur = con.cursor()
+        
+        set_schema = 'SET search_path TO {};'.format(self.schema)
         
         cur.execute(set_schema)
         
@@ -148,10 +160,44 @@ class CathubPostgreSQL:
                 cur.execute(statement)
             for statement in tsvector_statements:
                 print statement
-                cur.execute(statement)   
+                cur.execute(statement)
             con.commit()
         self.initialized = True
         return self
+
+    def create_user(self, user):
+        print 'hep!'
+        from pwgen import pwgen
+        con = self.connection or self._connect()
+        cur = con.cursor()
+        cur.execute('CREATE SCHEMA {};'.format(user))
+        #self._initialize(schema=schema_name)
+        password = pwgen(8)
+        cur.execute("CREATE USER {} with PASSWORD '{}';".format(user, password))
+        cur.execute('GRANT ALL PRIVILEGES ON SCHEMA {} TO {};'.format(user, user))
+        cur.execute('GRANT USAGE ON SCHEMA stage TO {};'.format(user))
+        cur.execute('GRANT SELECT ON ON ALL TABLES IN SCHEMA stage TO {};'.format(user))
+        cur.execute('ALTER ROLE {} SET search_path TO {};'.format(user, user))
+        with open('fireworks.txt', 'w') as f:
+            print >> f, password 
+
+        con.commit()
+        con.close()
+        
+
+        self.schema = user
+        self.user = user
+        self.password = password
+        con = self.connection or self._connect()
+        self._initialize(con)
+        
+        con.commit()
+        con.close()
+
+        print 'CREATED USER {} WITH PASSWORD {}'.format(user, password)
+
+        return self
+        
 
     def drop_tables(self):
         con = self.connection or self._connect()
