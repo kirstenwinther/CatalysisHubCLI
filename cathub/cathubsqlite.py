@@ -31,7 +31,7 @@ init_commands = [
     surface_composition text,
     facet text,
     sites text,
-    coverages text, 
+    coverages text,
     reactants text,
     products text,
     reaction_energy real,
@@ -39,7 +39,7 @@ init_commands = [
     dft_code text,
     dft_functional text,
     username text,
-    pub_id text, 
+    pub_id text,
     FOREIGN KEY (pub_id) REFERENCES publication(pub_id)
     );""",
 
