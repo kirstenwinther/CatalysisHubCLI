@@ -13,7 +13,7 @@ from ase import db
 
 
 class FolderReader:
-    def __init__(self, folder_name, debug=False, strict=False, verbose=False,
+    def __init__(self, folder_name, debug=False, strict=True, verbose=False,
                  update=True):
         self.debug = debug
         self.strict = strict
@@ -70,13 +70,12 @@ class FolderReader:
 
             if level == self.reaction_level:
                 #print root.split("/")[-1]
-                if goto_reaction is not None:
-                    if not found_reaction:
-                        if not root.split("/")[-1] == goto_reaction:
-                            dirs[:] = []
-                            continue
-                        else:
-                            found_reaction == True
+                if goto_reaction is not None and not found_reaction:
+                    if not root.split("/")[-1] == goto_reaction:
+                        dirs[:] = []
+                        continue
+                    else:
+                        found_reaction = True
 
                 self.read_reaction(root, files)
 
@@ -242,8 +241,8 @@ class FolderReader:
             self.states = get_reaction_atoms(self.reaction)
 
         # Create empty dictionaries
-        r_empty = ['' for n in range(len(self.reaction['reactants']))]
-        p_empty = ['' for n in range(len(self.reaction['products']))]
+        r_empty = ['' for n in range(len(self.reaction_atoms['reactants']))]
+        p_empty = ['' for n in range(len(self.reaction_atoms['products']))]
         self.traj_files = {'reactants': r_empty[:],
                            'products': p_empty[:]}
 
@@ -345,9 +344,12 @@ class FolderReader:
 
     def read_final(self, root, files):
         self.key_value_pairs_reaction = None
+        if 'TS' in self.traj_files:
+            del self.traj_files['TS']
+        if 'TSempty' in self.traj_files:
+            del self.traj_files['TSempty']
         traj_slabs = [f for f in files if f.endswith('.traj') \
                           and 'gas' not in f]
-        print traj_slabs
         #if traj_slabs == []:
         #    return
         if not self.debug:
@@ -364,13 +366,17 @@ class FolderReader:
         n_atoms = np.array([])
         empty_i = None
         ts_i = None
+        tsempty_i = None
         chemical_composition_slabs = []
         breakloop = False
         for i, f in enumerate(traj_slabs):
-            if 'empty' in f:
-                empty_i = i
-            if 'TS' in f:
+            if 'empty' in f and 'TS' in f:
+                tsempty_i = i
+            elif 'empty' in f:
+                empty_i = i            
+            elif 'TS' in f: 
                 ts_i = i
+
             traj = '{}/{}'.format(root, f)
             if not check_traj(traj, self.strict, False):
                 breakloop = True
@@ -435,6 +441,20 @@ class FolderReader:
                 elif self.update:
                     update_ase(self.cathub_db, id,  **key_value_pairs)
                 self.ase_ids.update({'TSstar': ase_id})
+                continue
+
+            if i == tsempty_i:                
+                found = True
+                self.traj_files.update({'TSempty': [traj]})
+                self.prefactors.update({'TSempty': [1]})
+                prefactor_scale.update({'TSempty': [1]})
+                key_value_pairs.update({'species': ''})
+                if ase_id is None:
+                    ase_id = write_ase(traj, self.cathub_db,
+                                       self.user, **key_value_pairs)
+                elif self.update:
+                    update_ase(self.cathub_db, id,  **key_value_pairs)
+                self.ase_ids.update({'TSemptystar': ase_id})
                 continue
 
             elif i == empty_i:
@@ -544,13 +564,14 @@ class FolderReader:
         
         try:
             reaction_energy, activation_energy = \
-                get_reaction_energy(self.traj_files, prefactors_final, 
+                get_reaction_energy(self.traj_files, self.reaction_atoms, 
+                                    self.states,  prefactors_final, 
                                     self.prefactors_TS)
     
         except:
-            if debug:
+            if self.debug:
                 print 'ERROR: reaction energy failed for files in: {}'.format(root)
-                continue
+                #flag = True
             else:
                 raise RuntimeError, 'Reaction energy failed for files in: {}'.format(root)
                 
@@ -563,11 +584,13 @@ class FolderReader:
             
             return
         
-        expr = activation_energy is None or -10 < activation_energy < 10
-        debug_assert(expr,
-                     'activation energy is wrong: {} eV: {}'\
-                     .format(activation_energy, root),
-                     self.debug)
+        expr = activation_energy is None or reaction_energy <  activation_energy < 5
+        if not debug_assert(expr,
+                            'activation energy is wrong: {} eV: {}'\
+                                .format(activation_energy, root),
+                            self.debug):
+            print self.traj_files, prefactors_final, self.prefactors_TS
+            
 
         reaction_info = {'reactants': {}, 
                          'products': {}}
@@ -577,7 +600,7 @@ class FolderReader:
                 r = clear_prefactor(r)
                 reaction_info[key].update({r: self.prefactors[key][i]})
 
-#       print chemical_composition, reaction_energy, activation_energy
+
         self.key_value_pairs_reaction = {'chemical_composition': chemical_composition,
                                          'surface_composition': surface_composition,
                                          'facet': self.facet,

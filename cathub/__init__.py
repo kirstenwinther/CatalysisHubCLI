@@ -10,8 +10,9 @@ def cli():
 @cli.command()
 @click.argument('folder_name')
 @click.option('--debug', default=False)
-@click.option('--skip_folders', default='', help="""subfolders not to read, given as the name of a single folder, or a string with names of more folders seperated by ', '""")
-def folder2db(folder_name, debug, skip_folders):
+@click.option('--skip-folders', default='', help="""subfolders not to read, given as the name of a single folder, or a string with names of more folders seperated by ', '""")
+@click.option('--goto-reaction', help="""name of reaction folder to skip to""")
+def folder2db(folder_name, debug, skip_folders, goto_reaction):
     import os
     import folder2db
 
@@ -19,7 +20,7 @@ def folder2db(folder_name, debug, skip_folders):
     for s in skip_folders.split(', '):
         for sk in s.split(','):
             skip.append(sk)
-    folder2db.main(folder_name, debug, skip)
+    folder2db.main(folder_name, debug, skip, goto_reaction)
 
 
 @cli.command()
@@ -39,12 +40,74 @@ def db2server(dbfile, start_id, write_reaction, write_ase, write_publication,
                    write_reaction_system=write_reaction_system)
 
 
+reaction_columns = ['chemicalComposition', 'surfaceComposition',
+                    'facet', 'sites', 'coverages', 'reactants', 'products', 'Equation',
+                    'reactionEnergy', 'activationEnergy', 'dftCode', 'dftFunctional',
+                    'username', 'pubId', 'reactionSystems', 'systems', 'publication']
+publication_columns = ['pubId', 'title', 'authors', 'journal', 'year', 'doi', 'tags']
 
+@cli.command()
+@click.option('--columns', '-c',
+              default=('chemicalComposition', 'Equation', 'reactionEnergy'),
+              type=click.Choice(reaction_columns),
+              multiple=True)
+@click.option('--n_results', default=10)
+@click.option('--queries', '-q',  default={}, multiple='True',
+              help="Make a selection on one of the columns: {}\n Examples: \n -q chemicalComposition=~Pt for surfaces containing Pt \n -q reactants=CO for reactions with CO as a reactants".format(reaction_columns))
+def reactions(columns, n_results, queries):
+    import query
+    if not isinstance(queries, dict):
+        query_dict = {}
+        for q in queries:
+            key, value = q.split('=')
+            if key == 'distinct':
+                if value in ['True', 'true']:
+                    query_dict.update({key: True})
+                    continue
+            try:
+                value = int(value)
+                query_dict.update({key: value})
+            except:
+                query_dict.update({key: '{}'.format(value)})
+    #columns = [columns]
+    query.main(table='reactions', columns=columns, n_results=n_results, queries=query_dict)
+
+
+    
+@cli.command()
+@click.option('--columns', '-c',
+              default = ('title', 'authors', 'journal', 'year'),
+              type=click.Choice(publication_columns),
+              multiple=True)
+@click.option('--n_results', default=10)
+@click.option('--queries', '-q', default={}, multiple=True,
+              help="Make a selection on one of the columns: {}\n Examples: \n -q: \n title=~Evolution \n authors=~bajdich \n year=2017".format(publication_columns))
+def publications(columns, n_results, queries):
+    import query
+    if not isinstance(queries, dict):
+        query_dict = {}
+        for q in queries:
+            key, value = q.split('=')
+            if key == 'distinct':
+                if value in ['True', 'true']:
+                    query_dict.update({key: True})
+                    continue
+            try:
+                value = int(value)
+                query_dict.update({key: value})
+            except:
+                query_dict.update({key: '{}'.format(value)})
+    
+    query.main(table='publications', columns=columns, n_results=n_results, queries=query_dict)
+
+
+    
 @cli.command()
 @click.argument('template')
 @click.option('--create-template', is_flag=True, help="Create an empty template file.")
 @click.option('--custom-base', )
-def make_folders(create_template, template, custom_base, ):
+@click.option('--diagnose', )
+def make_folders(create_template, template, custom_base, diagnose):
     """Create a basic folder tree to put in DFT calculcations.
 
     Dear all
@@ -77,7 +140,7 @@ def make_folders(create_template, template, custom_base, ):
      ]
 
     Also, include the phase and of the species as an extension:
-      'gas' for gas phase (i.e. CH3 -> CH3gas)
+      'gas' for gas phase (i.e. CH4 -> CH4gas)
       'star' for empty site or adsorbed phase. (i.e. OH -> OHstar)
 
     The site of adsorbed species is also included as an extension:
@@ -116,9 +179,10 @@ def make_folders(create_template, template, custom_base, ):
                 {'reactants': ['2.0H2Ogas', '-1.5H2gas', 'star'], 
                  'products': [ 'OOHstar@top']},
                 {'reactants': ['CCH3star@bridge'], 'products': ['Cstar@hollow', 'CH3star@ontop']},
-                {'reactants': ['CH3gas', 'star'], 'products': ['CH3star@ontop']}
+                {'reactants': ['CH4gas', '-0.5H2gas', 'star'], 'products': ['CH3star@ontop']}
         ],
-        'surfaces': ['Pt'],
+        'bulk_compositions': ['Pt'],
+        'crystal_structures': ['fcc', 'hcp'],
         'facets': ['111']
     }
     if template is not None:
@@ -145,7 +209,8 @@ def make_folders(create_template, template, custom_base, ):
                 dft_code = template_data['DFT_code']
                 dft_functional = template_data['DFT_functional']
                 reactions = template_data['reactions']
-                surfaces = template_data['surfaces']
+                crystal_structures = template_data['crystal_structures']
+                bulk_compositions = template_data['bulk_compositions']
                 facets = template_data['facets']
 
     make_folders_template.main(
@@ -164,7 +229,8 @@ def make_folders(create_template, template, custom_base, ):
         reactions=eval(reactions) if isinstance(
             reactions, six.string_types) else reactions,
         custom_base=custom_base,
-        surfaces=surfaces,
+        bulk_compositions=bulk_compositions,
+        crystal_structures=crystal_structures,
         facets=facets
     )
 
