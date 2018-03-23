@@ -30,14 +30,18 @@ def folder2db(folder_name, debug, skip_folders, goto_reaction):
 @click.option('--write_reaction_system', default=True, type=bool)
 @click.option('--write_ase', default=True, type=bool)
 @click.option('--write_publication', default=True, type=bool)
+@click.option('--block-size', default=1000, type=int)
+@click.option('--start-block', default=0, type=int)
 def db2server(dbfile, start_id, write_reaction, write_ase, write_publication,
-              write_reaction_system):
+              write_reaction_system, block_size, start_block):
     import os
     import db2server
     db2server.main(dbfile, start_id=start_id, write_reaction=write_reaction,
                    write_ase=write_ase,
                    write_publication=write_publication,
-                   write_reaction_system=write_reaction_system)
+                   write_reaction_system=write_reaction_system,
+                   block_size=block_size,
+                   start_block=start_block)
 
 
 reaction_columns = ['chemicalComposition', 'surfaceComposition',

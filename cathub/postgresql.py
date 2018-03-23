@@ -39,7 +39,8 @@ init_commands = [
     dft_code text,
     dft_functional text,
     username text,
-    pub_id text REFERENCES publication (pub_id) ON DELETE CASCADE
+    pub_id text REFERENCES publication (pub_id) ON DELETE CASCADE,
+    UNIQUE (chemical_composition, facet, sites, coverages, reactants, products, pub_id)
     );""",
 
     """CREATE TABLE reaction_system (
@@ -101,7 +102,6 @@ tsvector_update = [
 
 class CathubPostgreSQL:
     def __init__(self, user='catappuser', password=None):
-        print 'hep'
         self.initialized = False
         self.connection = None
         self.id = None
@@ -166,7 +166,6 @@ class CathubPostgreSQL:
         return self
 
     def create_user(self, user):
-        print 'hep!'
         from pwgen import pwgen
         con = self.connection or self._connect()
         cur = con.cursor()
@@ -329,7 +328,8 @@ class CathubPostgreSQL:
 
     def transfer(self, filename_sqlite, start_id=1, write_ase=True,
                  write_publication=True, write_reaction=True,  
-                 write_reaction_system=True):
+                 write_reaction_system=True, block_size=1000,
+                 start_block=0):
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
@@ -342,14 +342,28 @@ class CathubPostgreSQL:
         nrows = 0
         if write_ase:
             db = ase.db.connect(filename_sqlite)
-            with ase.db.connect(server_name, type='postgresql') as db2:
-                for row in db.select():#'', sort=args.sort):cd
-                    kvp = row.get('key_value_pairs', {})
-                    nkvp -= len(kvp)
-                    # kvp.update(add_key_value_pairs)
-                    nkvp += len(kvp)
-                    db2.write(row, data=row.get('data'), **kvp)
-                    nrows += 1
+            n_structures = db.count()
+            n_blocks = n_structures / int(block_size) + 1
+            for block_id in range(start_block, n_blocks):
+                b0 = block_id * block_size + 1
+                b1 = (block_id + 1) * block_size + 1
+                if block_id + 1 == n_blocks:
+                    b1 = n_structures
+                #rows = [db._get_row(i) for i in range(b0, b1]
+                db2 = ase.db.connect(server_name, type='postgresql')
+                for lala in [0]:
+                #with ase.db.connect(server_name, type='postgresql') as db2:
+                    for i in range(b0, b1):
+                        row = db.get(i)
+                        kvp = row.get('key_value_pairs', {})
+                        nkvp -= len(kvp)
+                        # kvp.update(add_key_value_pairs)
+                        nkvp += len(kvp)
+                        db2.write(row, data=row.get('data'), **kvp)
+                        nrows += 1
+                        
+                print 'Finnished Block {}:'.format(block_id)
+                print '  Completed transfer of {} atomic structures.'.format(nrows)
         
         from cathubsqlite import CathubSQLite
         db = CathubSQLite(filename_sqlite)
@@ -398,7 +412,7 @@ class CathubPostgreSQL:
                     continue
                 values = row[0]
 
-                id = self.check(values[1], values[6], values[7], values[8]) # values[5], values[6], 
+                id = self.check(values[1], values[6], values[7], values[8])
                 if id is not None:
                     print 'Allready in reaction db with row id = {}'.format(id)
                     id = self.update(id, values)
