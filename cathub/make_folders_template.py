@@ -44,6 +44,7 @@ def main(
         #{'reactants': ['CCH3'], 'products': ['C', 'CH3']},
         #{'reactants': ['CH3star'], 'products': ['CH3gas', 'star']}
     ],
+    energy_corrections={'H2gas': 0.1},
     bulk_compositions=['Pt', 'Ag'],
     crystal_structures=['fcc', 'hcp'],
     facets=['111'],
@@ -135,6 +136,10 @@ def main(
 
     pub_txt = publication_base + 'publication.txt'
     json.dump(publication_dict, open(pub_txt, 'wb'))
+
+    if not len(energy_corrections.keys()) == 0:
+        energy_txt = publication_base + 'energy_corrections.txt'
+        json.dump(energy_corrections, open(energy_txt, 'wb'))
 
     
     def create(path):
