@@ -101,7 +101,6 @@ tsvector_update = [
 
 class CathubPostgreSQL:
     def __init__(self, user='catappuser', password=None):
-        print 'hep'
         self.initialized = False
         self.connection = None
         self.id = None
@@ -184,7 +183,6 @@ class CathubPostgreSQL:
         con.commit()
         con.close()
         
-
         self.schema = user
         self.user = user
         self.password = password
@@ -208,20 +206,39 @@ class CathubPostgreSQL:
         con.close()
         return
 
-    def status(self):
+    def status(self, table='reaction'):
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
-        cur.execute("SELECT COUNT(*) from reaction;")
-        print cur.fetchall()
-        #cur.execute("""SELECT reactants, products FROM reaction where reference""")
-        #print len(cur.fetchall())
+        cur.execute("SELECT COUNT(id) from {};".format(table))
+        count = cur.fetchone()
+        return count[0]
+
+    def read(self, id, table='reaction'):
+        con = self.connection or self._connect()
+        self._initialize(con)
+        cur = con.cursor()
+        
+        cur.execute("SELECT column_name FROM information_schema.columns WHERE table_schema = 'stage' AND table_name='{}';".format(table))
+        columns = cur.fetchall()
+
+        if id == 'all':
+            cur.execute('SELECT * FROM \n {} \n'.format(table,
+                                                        table))
+        else:
+            cur.execute('SELECT * FROM \n {} \n WHERE \n {}.id={}'.format(table,
+                                                                          table,
+                                                                          id))
+        row = cur.fetchall()
+
+        return columns, row
+
  
     def write_publication(self, pub_values):
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
-        pub_id =  pub_values[1].encode('ascii','ignore')
+        pub_id = pub_values[1].encode('ascii','ignore')
         cur.execute("""SELECT id from publication where pub_id='{}'""".format(pub_id))
         row = cur.fetchone()
         if row is not None: #len(row) > 0:
@@ -282,33 +299,41 @@ class CathubPostgreSQL:
             con.close()
         return id
 
-    def update_publication(self, pub_dict, authorlist, year):
+    def update_publication(self, pub_dict):
+        import json
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
-        #SELECT jsonb_set('{"a":[null,{"b":[1,2]}]}', '{a,1,b,1000}', jsonb '3', true)        
-        key0 = pub_dict.keys()[0]
-        ids = []
-        import json
-
+        
+        pub_id = pub_dict['pub_id']
+        
+        values = pub_dict.values()    
+        key_str = ', '.join(pub_dict.keys())
+        value_str = "'{}'".format(values[0])
+        for v in values[1:]:
+            if isinstance(v, unicode):
+                v = v.encode('ascii','ignore')
+            if v is None or v == '':
+                value_str += ", {}".format('NULL')
+            elif isinstance(v, str):
+                value_str += ", '{}'".format(v)
+            elif isinstance(v, list):
+                value_str += ", '{}'".format(json.dumps(v))
+            else:
+                value_str += ", {}".format(v)
+        
         update_command = \
-        """UPDATE reaction SET 
-        publication = '{}'
-        WHERE 
-        publication -> 'authors' = '{}' and year = {} returning id;"""\
-            .format(json.dumps(pub_dict), json.dumps(authorlist), year)
-            #.format(key_str, value_str, id)
+        """UPDATE publication SET ({}) = ({}) WHERE pub_id='{}';"""\
+        .format(key_str, value_str, pub_id)
 
-
-        #jsonb_set(publication, '{{{}}}', '{}' || '{}') 
+        print update_command
         cur.execute(update_command)
-
-        id = cur.fetchone()[0]
+        
         if self.connection is None:
             con.commit()
             con.close()
         
-        return id
+        return 
     
     def delete(self, authorlist, year, doi=None):
         con = self.connection or self._connect()
