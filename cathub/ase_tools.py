@@ -403,13 +403,13 @@ def check_in_ase(filename, ase_db, energy=None):
         return None, None
 
 
-def write_ase(filename, db_file, user=None, **key_value_pairs):
+def write_ase(filename, db_file, user=None, data=None, **key_value_pairs):
     """ Connect to ASE db"""
     atoms = read_ase(filename)
     atoms = tag_atoms(atoms)
     db_ase = ase.db.connect(db_file)
     #db_ase.user = user
-    id = db_ase.write(atoms, **key_value_pairs)
+    id = db_ase.write(atoms, data=data, **key_value_pairs)
     print 'writing atoms to ASE db row id = {}'.format(id)
     unique_id = db_ase.get(id)['unique_id']
     return unique_id

@@ -39,7 +39,8 @@ init_commands = [
     dft_code text,
     dft_functional text,
     username text,
-    pub_id text REFERENCES publication (pub_id) ON DELETE CASCADE
+    pub_id text REFERENCES publication (pub_id) ON DELETE CASCADE,
+    UNIQUE (chemical_composition, facet, sites, coverages, reactants, products, pub_id)
     );""",
 
     """CREATE TABLE reaction_system (
@@ -102,7 +103,6 @@ tsvector_update = [
 
 class CathubPostgreSQL:
     def __init__(self, user='catappuser', password=None):
-        print 'hep'
         self.initialized = False
         self.connection = None
         self.id = None
@@ -167,7 +167,6 @@ class CathubPostgreSQL:
         return self
 
     def create_user(self, user):
-        print 'hep!'
         from pwgen import pwgen
         con = self.connection or self._connect()
         cur = con.cursor()
@@ -185,7 +184,6 @@ class CathubPostgreSQL:
         con.commit()
         con.close()
         
-
         self.schema = user
         self.user = user
         self.password = password
@@ -209,20 +207,39 @@ class CathubPostgreSQL:
         con.close()
         return
 
-    def status(self):
+    def status(self, table='reaction'):
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
-        cur.execute("SELECT COUNT(*) from reaction;")
-        print cur.fetchall()
-        #cur.execute("""SELECT reactants, products FROM reaction where reference""")
-        #print len(cur.fetchall())
+        cur.execute("SELECT COUNT(id) from {};".format(table))
+        count = cur.fetchone()
+        return count[0]
+
+    def read(self, id, table='reaction'):
+        con = self.connection or self._connect()
+        self._initialize(con)
+        cur = con.cursor()
+        
+        cur.execute("SELECT column_name FROM information_schema.columns WHERE table_schema = 'stage' AND table_name='{}';".format(table))
+        columns = cur.fetchall()
+
+        if id == 'all':
+            cur.execute('SELECT * FROM \n {} \n'.format(table,
+                                                        table))
+        else:
+            cur.execute('SELECT * FROM \n {} \n WHERE \n {}.id={}'.format(table,
+                                                                          table,
+                                                                          id))
+        row = cur.fetchall()
+
+        return columns, row
+
  
     def write_publication(self, pub_values):
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
-        pub_id =  pub_values[1].encode('ascii','ignore')
+        pub_id = pub_values[1].encode('ascii','ignore')
         cur.execute("""SELECT id from publication where pub_id='{}'""".format(pub_id))
         row = cur.fetchone()
         if row is not None: #len(row) > 0:
@@ -283,33 +300,41 @@ class CathubPostgreSQL:
             con.close()
         return id
 
-    def update_publication(self, pub_dict, authorlist, year):
+    def update_publication(self, pub_dict):
+        import json
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
-        #SELECT jsonb_set('{"a":[null,{"b":[1,2]}]}', '{a,1,b,1000}', jsonb '3', true)        
-        key0 = pub_dict.keys()[0]
-        ids = []
-        import json
-
+        
+        pub_id = pub_dict['pub_id']
+        
+        values = pub_dict.values()    
+        key_str = ', '.join(pub_dict.keys())
+        value_str = "'{}'".format(values[0])
+        for v in values[1:]:
+            if isinstance(v, unicode):
+                v = v.encode('ascii','ignore')
+            if v is None or v == '':
+                value_str += ", {}".format('NULL')
+            elif isinstance(v, str):
+                value_str += ", '{}'".format(v)
+            elif isinstance(v, list):
+                value_str += ", '{}'".format(json.dumps(v))
+            else:
+                value_str += ", {}".format(v)
+        
         update_command = \
-        """UPDATE reaction SET 
-        publication = '{}'
-        WHERE 
-        publication -> 'authors' = '{}' and year = {} returning id;"""\
-            .format(json.dumps(pub_dict), json.dumps(authorlist), year)
-            #.format(key_str, value_str, id)
+        """UPDATE publication SET ({}) = ({}) WHERE pub_id='{}';"""\
+        .format(key_str, value_str, pub_id)
 
-
-        #jsonb_set(publication, '{{{}}}', '{}' || '{}') 
+        print update_command
         cur.execute(update_command)
-
-        id = cur.fetchone()[0]
+        
         if self.connection is None:
             con.commit()
             con.close()
         
-        return id
+        return 
     
     def delete(self, authorlist, year, doi=None):
         con = self.connection or self._connect()
@@ -330,7 +355,8 @@ class CathubPostgreSQL:
 
     def transfer(self, filename_sqlite, start_id=1, write_ase=True,
                  write_publication=True, write_reaction=True,  
-                 write_reaction_system=True):
+                 write_reaction_system=True, block_size=1000,
+                 start_block=0):
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
@@ -343,14 +369,28 @@ class CathubPostgreSQL:
         nrows = 0
         if write_ase:
             db = ase.db.connect(filename_sqlite)
-            with ase.db.connect(server_name, type='postgresql') as db2:
-                for row in db.select():#'', sort=args.sort):cd
-                    kvp = row.get('key_value_pairs', {})
-                    nkvp -= len(kvp)
-                    # kvp.update(add_key_value_pairs)
-                    nkvp += len(kvp)
-                    db2.write(row, data=row.get('data'), **kvp)
-                    nrows += 1
+            n_structures = db.count()
+            n_blocks = n_structures / int(block_size) + 1
+            for block_id in range(start_block, n_blocks):
+                b0 = block_id * block_size + 1
+                b1 = (block_id + 1) * block_size + 1
+                if block_id + 1 == n_blocks:
+                    b1 = n_structures
+                #rows = [db._get_row(i) for i in range(b0, b1]
+                db2 = ase.db.connect(server_name, type='postgresql')
+                for lala in [0]:
+                #with ase.db.connect(server_name, type='postgresql') as db2:
+                    for i in range(b0, b1):
+                        row = db.get(i)
+                        kvp = row.get('key_value_pairs', {})
+                        nkvp -= len(kvp)
+                        # kvp.update(add_key_value_pairs)
+                        nkvp += len(kvp)
+                        db2.write(row, data=row.get('data'), **kvp)
+                        nrows += 1
+                        
+                print 'Finnished Block {}:'.format(block_id)
+                print '  Completed transfer of {} atomic structures.'.format(nrows)
         
         from cathubsqlite import CathubSQLite
         db = CathubSQLite(filename_sqlite)
@@ -399,7 +439,7 @@ class CathubPostgreSQL:
                     continue
                 values = row[0]
 
-                id = self.check(values[1], values[6], values[7], values[8]) # values[5], values[6], 
+                id = self.check(values[1], values[6], values[7], values[8])
                 if id is not None:
                     print 'Allready in reaction db with row id = {}'.format(id)
                     id = self.update(id, values)
