@@ -196,24 +196,5 @@ def main(
                         with open(base + 'MISSING: {}.traj'.format(ads), 'w'):
                             pass
 
-def diagnose(folder):
-    miss_list = []
-    for root, dirs, files in os.walk(folder):
-        for file in files:
-            if 'MISSING: ' in file:
-                traj = file.replace('MISSING: ', '') + '.traj'
-                if os.path.isfile(root + '/' + traj):
-                    print 'found {}'.format(traj)
-                    os.remove(root + '/' + file)
-                else:
-                    miss_list.append(traj)
-    
-    if len(miss_list) > 0:
-        print 'Files missing'
-        print miss_list
-    else:
-        print 'all files there!'
-    return 
-    
 if __name__ == "__main__":
     main()
