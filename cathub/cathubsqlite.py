@@ -45,6 +45,7 @@ init_commands = [
 
     """ CREATE TABLE reaction_system (
     name text,
+    energy_correction real,
     ase_id text,
     id integer,
     FOREIGN KEY (ase_id) REFERENCES systems(unique_id),
@@ -186,9 +187,14 @@ class CathubSQLite:
 
         pub_id = values['pub_id']
         ase_ids = values['ase_ids']
+        energy_corrections = values['energy_corrections']
+
         if ase_ids is not None:
+            if 'TSemptystar' in ase_ids:
+                if ase_ids['TSemptystar'] == ase_ids['star']:
+                    del ase_ids['TSemptystar']
             ase_values = ase_ids.values()
-            assert len(set(ase_values)) == len(ase_values), 'Dublicate ASE ids!'
+            assert len(set(ase_values)) == len(ase_values), 'Dublicate ASE ids: {}'.format(ase_ids)
 
             reaction_species = set(values['reactants'].keys() +
                                    values['products'].keys())
@@ -223,10 +229,15 @@ class CathubSQLite:
         cur.execute('INSERT INTO reaction VALUES ({})'.format(q),
                     values)
         reaction_structure_values = []
+
         for name, ase_id in ase_ids.items():
-            reaction_structure_values.append([name, ase_id, id])
+            if name in energy_corrections:
+                energy_correction = energy_corrections[name]
+            else:
+                energy_correction = 0
+            reaction_structure_values.append([name, energy_correction, ase_id, id])
             cur.execute('INSERT OR IGNORE INTO publication_system(ase_id, pub_id) VALUES (?, ?)', [ase_id, pub_id])
-        cur.executemany('INSERT INTO reaction_system VALUES (?, ?, ?)',
+        cur.executemany('INSERT INTO reaction_system VALUES (?, ?, ?, ?)',
                         reaction_structure_values)
 
         if self.connection is None:
@@ -243,21 +254,11 @@ class CathubSQLite:
 
         key_list, value_list = get_key_value_list(key_names, values)
         N_keys = len(key_list)
-        
-        #cur.execute('SELECT * from reaction where id = {}'.format(id))
-        #row = cur.fetchall()
-        #update_index = []
-        #for i, val in enumerate(row[0][1:]):
-        #    if not val == value_list[i]:
-        #        print i, val, value_list[i]
-        #        update_index.append(i)
-        
+                
         value_strlist = get_value_strlist(value_list)
         execute_str = ', '.join('{}={}'.format(key_list[i], value_strlist[i])
                                 for i in range(N_keys))
         
-
-        #execute_str = ', '.join('{}={}'.format(key_list[i], value_strlist[i]) for i in update_index)
         
         update_command = 'UPDATE reaction SET {} WHERE id = {};'\
             .format(execute_str, id)

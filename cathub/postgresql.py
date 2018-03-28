@@ -44,9 +44,10 @@ init_commands = [
 
     """CREATE TABLE reaction_system (
     name text, 
+    energy_correction numeric,
     ase_id text REFERENCES systems(unique_id) ON DELETE CASCADE,
-    reaction_id integer REFERENCES reaction(id) ON DELETE CASCADE,
-    PRIMARY KEY (reaction_id, ase_id)
+    id integer REFERENCES reaction(id) ON DELETE CASCADE,
+    PRIMARY KEY (id, ase_id)
     )"""
 ]
 
@@ -476,7 +477,7 @@ class CathubPostgreSQL:
 def get_key_value_str(values, table='reaction'):
     key_str = {'reaction': 'chemical_composition, surface_composition, facet, sites, coverages, reactants, products, reaction_energy, activation_energy, dft_code, dft_functional, username, pub_id',
                'publication': 'pub_id, title, authors, journal, volume, number, pages, year, publisher, doi, tags',
-               'reaction_system': 'name, ase_id, reaction_id',
+               'reaction_system': 'name, energy_correction, ase_id, id',
                'publication_system': 'ase_id, pub_id'}
 
     start_index = 1

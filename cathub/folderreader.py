@@ -3,6 +3,7 @@ import csv
 import copy
 import sqlite3
 from sys import argv
+import json
 from ase_tools import *
 from cathubsqlite import CathubSQLite
 from tools import get_bases
@@ -120,12 +121,12 @@ class FolderReader:
                 #print 'Allready in reaction db with row id = {}'.format(id)
                 if id is None:
                     id = db.write(key_values)
-                    print 'Written to reaction db row id = {}'.format(id)
+                    print 'Written to reaction db row id = {}'.format(id)                
+                #elif self.update:                    
+                #    db.update(id, key_value_pairs_reaction)
+                #    print 'Updated reaction db row id = {}'.format(id)
                 else:
                     print 'Allready in reaction db with row id = {}'.format(id)
-                #elif self.update:
-                #    db.update(id, key_value_pairs_reaction)
-
     def write_publication(self, pub_data):
         with CathubSQLite(self.cathub_db) as db:
             pid = db.check_publication(self.pub_id)
@@ -200,7 +201,12 @@ class FolderReader:
                         'tags': None
                         }
             self.reference = json.dumps(pub_data)
-
+        
+        try:
+            self.energy_corrections = json.load(open(root + '/energy_corrections.txt', 'r'))
+        except:
+            self.energy_corrections = {}    
+            
         if pub_data['title'] is None:
             self.title = root.split('/')[-1]
             pub_data.update({'title': self.title})
@@ -245,7 +251,6 @@ class FolderReader:
         p_empty = ['' for n in range(len(self.reaction_atoms['products']))]
         self.traj_files = {'reactants': r_empty[:],
                            'products': p_empty[:]}
-
 
         self.ase_ids = {}
 
@@ -557,16 +562,21 @@ class FolderReader:
         for key in self.prefactors:
             for i, v in enumerate(self.prefactors[key]):
                 prefactors_final[key][i] = self.prefactors[key][i] * \
-                                           prefactor_scale[key][i] 
+                                           prefactor_scale[key][i]
 
         reaction_energy = None
         activation_energy = None        
         
+        #if 'H2gas' in self.ase_ids.keys():
+        #    self.energy_corrections.update({'H2gas': 0.1})
+        #if 'CH3CHOgas' in self.ase_ids.keys():
+        #    self.energy_corrections.update({'CH3CHOgas': 0.15})
+
         try:
             reaction_energy, activation_energy = \
-                get_reaction_energy(self.traj_files, self.reaction_atoms, 
+                get_reaction_energy(self.traj_files, self.reaction, self.reaction_atoms, 
                                     self.states,  prefactors_final, 
-                                    self.prefactors_TS)
+                                    self.prefactors_TS, self.energy_corrections)
     
         except:
             if self.debug:
@@ -616,6 +626,7 @@ class FolderReader:
                                          'doi': self.doi,
                                          'year': int(self.year),
                                          'ase_ids': self.ase_ids,
+                                         'energy_corrections': self.energy_corrections,
                                          'user': self.user
                                    }
 

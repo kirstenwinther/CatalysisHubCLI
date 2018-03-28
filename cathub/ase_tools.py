@@ -4,16 +4,9 @@ import ase
 from ase import *
 from sys import argv
 from ase.io import read, write
-from ase.db.row import AtomsRow
-from ase.io.jsonio import encode
-from ase.io.trajectory import convert
-from ase.visualize import view
-import json
-import csv
-import six
-
 
 def read_ase(filename):
+    import six
     if isinstance(filename, six.string_types):
         atoms = read(filename)
     else:
@@ -21,8 +14,8 @@ def read_ase(filename):
     return atoms
 
 
-
 def check_traj(filename, strict=True, verbose=True):
+    from ase.io.trajectory import convert
     import math
     try:
         atoms = read_ase(filename)
@@ -49,7 +42,6 @@ def check_traj(filename, strict=True, verbose=True):
             return False
     return True
 
-
 def get_reference(filename):
     atoms = read_ase(filename)
     energy = atoms.get_potential_energy()
@@ -62,6 +54,8 @@ def get_pbc(filename):
 
 
 def get_traj_str(filename):
+    from ase.db.row import AtomsRow
+    from ase.io.jsonio import encode
     atoms = read_ase(filename)
     row = AtomsRow(atoms)
     dct = {}
@@ -189,15 +183,23 @@ def get_state(name):
     return state
 
 
-def get_reaction_energy(traj_files, reaction_atoms, states, 
-                        prefactors, prefactors_TS):
+def get_reaction_energy(traj_files, reaction, reaction_atoms, states, 
+                        prefactors, prefactors_TS, energy_corrections):
 
     energies = {}
     for key in traj_files.keys():
         energies.update({key: ['' for n in range(len(traj_files[key]))]})
     for key, trajlist in traj_files.iteritems():
-        for i, traj in enumerate(trajlist):
-            energies[key][i] = prefactors[key][i] * get_energy(traj)
+        for i, traj in enumerate(trajlist):            
+            try:
+                trajname =  clear_prefactor(reaction[key][i])
+            except:
+                trajname = None
+            if trajname in energy_corrections.keys():
+                Ecor = energy_corrections[trajname]
+            else:
+                Ecor = 0
+            energies[key][i] = prefactors[key][i] * (get_energy(traj) + Ecor)
 
     # Reaction energy:        
     energy_reactants = np.sum(energies['reactants'])
@@ -218,8 +220,16 @@ def get_reaction_energy(traj_files, reaction_atoms, states,
             tsemptydiff = get_energy(traj_tsempty) - get_energy(traj_empty)
         
         for i, traj in enumerate(traj_files['reactants']):
+            try:
+                trajname =  clear_prefactor(reaction['reactants'][i])
+            except:
+                trajname = None
+            if trajname in energy_corrections.keys():
+                Ecor = energy_corrections[trajname]
+            else:
+                Ecor = 0
             energies['reactants'][i] = prefactors_TS['reactants'][i]\
-                * get_energy(traj)
+                * (get_energy(traj) + Ecor)
             if 'TSempty' in traj_files.keys() and \
                     states['reactants'][i] == 'star':
                 energies['reactants'][i] += prefactors_TS['reactants'][i]\
