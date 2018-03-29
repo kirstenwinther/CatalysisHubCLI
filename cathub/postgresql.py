@@ -1,8 +1,6 @@
 import psycopg2
 import os
 
-set_schema = 'SET search_path TO stage;'
-
 init_commands = [
     """CREATE TABLE publication (
     id SERIAL PRIMARY KEY,
@@ -44,11 +42,10 @@ init_commands = [
     );""",
 
     """CREATE TABLE reaction_system (
-    name text, 
-    energy_correction numeric,
+    name text,
     ase_id text REFERENCES systems(unique_id) ON DELETE CASCADE,
-    id integer REFERENCES reaction(id) ON DELETE CASCADE,
-    PRIMARY KEY (id, ase_id)
+    reaction_id integer REFERENCES reaction(id) ON DELETE CASCADE,
+    PRIMARY KEY (reaction_id, ase_id)
     )"""
 ]
 
@@ -102,27 +99,27 @@ tsvector_update = [
 
 
 class CathubPostgreSQL:
-    def __init__(self, user='catappuser', password=None):
+    def __init__(self, user='catroot', password=None):
         self.initialized = False
         self.connection = None
         self.id = None
-        if user == 'catappuser':
-            self.schema = 'stage'
+        if user == 'catroot':
+            self.schema = 'public'
         else:
             self.schema = user
-        self.user=user
-                
+        self.user = user
+        self.server = 'catalysishub.c8gwuc8jwb7l.us-west-2.rds.amazonaws.com'
         if password is None:
             password = os.environ['DB_PASSWORD']
         self.password=password
         
     def _connect(self):
         import os
-        con = psycopg2.connect(host="catappdatabase.cjlis1fysyzx.us-west-1.rds.amazonaws.com", 
+        con = psycopg2.connect(host=self.server,
                                user=self.user,
                                password=self.password,
                                port=5432,
-                               database='catappdatabase')
+                               database='catalysishub')
         
         return con
 
@@ -144,9 +141,9 @@ class CathubPostgreSQL:
             return        
         cur = con.cursor()
         
-        set_schema = 'SET search_path TO {};'.format(self.schema)
+        #set_schema = 'SET search_path TO {};'.format(self.schema)
         
-        cur.execute(set_schema)
+        #cur.execute(set_schema)
         
         from ase.db.postgresql import PostgreSQLDatabase
         PostgreSQLDatabase()._initialize(con)
@@ -175,8 +172,8 @@ class CathubPostgreSQL:
         password = pwgen(8)
         cur.execute("CREATE USER {} with PASSWORD '{}';".format(user, password))
         cur.execute('GRANT ALL PRIVILEGES ON SCHEMA {} TO {};'.format(user, user))
-        cur.execute('GRANT USAGE ON SCHEMA stage TO {};'.format(user))
-        cur.execute('GRANT SELECT ON ON ALL TABLES IN SCHEMA stage TO {};'.format(user))
+        cur.execute('GRANT USAGE ON SCHEMA public TO {};'.format(user))
+        cur.execute('GRANT SELECT ON ALL TABLES IN SCHEMA public TO {};'.format(user))
         cur.execute('ALTER ROLE {} SET search_path TO {};'.format(user, user))
         with open('fireworks.txt', 'w') as f:
             print >> f, password 
@@ -220,7 +217,7 @@ class CathubPostgreSQL:
         self._initialize(con)
         cur = con.cursor()
         
-        cur.execute("SELECT column_name FROM information_schema.columns WHERE table_schema = 'stage' AND table_name='{}';".format(table))
+        cur.execute("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name='{}';".format(table))
         columns = cur.fetchall()
 
         if id == 'all':
@@ -363,8 +360,7 @@ class CathubPostgreSQL:
 
         import os
         import ase.db
-        password = os.environ['DB_PASSWORD']
-        server_name = "postgres://catappuser:{}@catappdatabase.cjlis1fysyzx.us-west-1.rds.amazonaws.com:5432/catappdatabase".format(password)
+        server_name = "postgres://{}:{}@{}:5432/catalysishub".format(self.user, self.password, self.server)
         nkvp = 0
         nrows = 0
         if write_ase:
