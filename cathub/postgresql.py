@@ -141,9 +141,8 @@ class CathubPostgreSQL:
             return        
         cur = con.cursor()
         
-        #set_schema = 'SET search_path TO {};'.format(self.schema)
-        
-        #cur.execute(set_schema)
+        set_schema = 'SET search_path TO {};'.format(self.schema)        
+        cur.execute(set_schema)
         
         from ase.db.postgresql import PostgreSQLDatabase
         PostgreSQLDatabase()._initialize(con)
@@ -373,9 +372,9 @@ class CathubPostgreSQL:
                 if block_id + 1 == n_blocks:
                     b1 = n_structures
                 #rows = [db._get_row(i) for i in range(b0, b1]
-                db2 = ase.db.connect(server_name, type='postgresql')
-                for lala in [0]:
-                #with ase.db.connect(server_name, type='postgresql') as db2:
+                #db2 = ase.db.connect(server_name, type='postgresql')
+                #for lala in [0]:
+                with ase.db.connect(server_name, type='postgresql') as db2:
                     for i in range(b0, b1):
                         row = db.get(i)
                         kvp = row.get('key_value_pairs', {})
@@ -435,7 +434,8 @@ class CathubPostgreSQL:
                     continue
                 values = row[0]
 
-                id = self.check(values[1], values[6], values[7], values[8])
+                id = self.check(values[1], values[6], values[7],
+                                strict=False)#, values[8])
                 if id is not None:
                     print 'Allready in reaction db with row id = {}'.format(id)
                     id = self.update(id, values)
@@ -450,7 +450,6 @@ class CathubPostgreSQL:
                     for row in rows:
                         Ncatstruc += 1
                         values = list(row)
-
                         values[2] = id
                         key_str, value_str = get_key_value_str(values,
                                                                table='reaction_system')
@@ -474,16 +473,32 @@ class CathubPostgreSQL:
         print '  reaction: {}'.format(Ncat)
         print '  reaction_system: {}'.format(Ncatstruc)
             
-    def check(self, chemical_composition, reactants, products, reaction_energy):
+    def check(self, chemical_composition, reactants, products,
+              reaction_energy=None, strict=True):
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
+        keys = 'chemical_composition,  reactants, products'
+        values = [chemical_composition, reactants, products]
+        placeholder = """'{}', '{}', '{}'"""
+        if strict:
+            assert reaction_energy is not None
+            placeholder += ", {}"
+            keys += ', reaction_energy'
+            values.append(reaction_energy)
+
+        placeholder += """);"""
+        arguments = [keys] + values
+
         statement = \
         """SELECT id 
         FROM reaction WHERE 
-        (chemical_composition,  reactants, products, reaction_energy) = 
-        ('{}', '{}', '{}', {})""".format(chemical_composition, reactants, products, reaction_energy)
-        #argument = [reaction_energy]
+        ({}) = 
+        (""" + placeholder
+
+        statement = statement.format(*arguments)
+        print statement
+
         cur.execute(statement)
         rows = cur.fetchall()
         if len(rows) > 0:
