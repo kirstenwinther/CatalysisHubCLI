@@ -22,16 +22,16 @@ def main(folder):
             if 'MISSING: ' in file:
                 traj = file.replace('MISSING: ', '')
                 if os.path.isfile(root + '/' + traj):
-                    print 'found {}'.format(traj)
+                    print('found {}'.format(traj))
                     os.remove(root + '/' + file)
                 else:
                     miss_list.append(traj)
     
     if len(miss_list) > 0:
-        print 'Files missing'
-        print miss_list
+        print('Files missing')
+        print(miss_list)
     else:
-        print 'all files there!'
+        print('all files there!')
     return 
     
 if __name__ == "__main__":
