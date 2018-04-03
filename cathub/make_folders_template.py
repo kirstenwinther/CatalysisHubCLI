@@ -16,12 +16,10 @@ except:  # SUNCAT
 sys.path.append(catbase)
 from tools import extract_atoms, check_reaction
 
-
 username = os.environ['USER']
 
+
 # ---------publication info------------
-
-
 def main(
     title='Fancy title',  # work title if not yet published
     authors=['Doe, John', 'Einstein, Albert'],  # name required
@@ -36,7 +34,7 @@ def main(
     DFT_code='Quantum ESPRESSO',  # for example 'Quantum ESPRESSO'
     DFT_functional='BEEF-vdW',  # For example 'BEEF-vdW'
 
-    #  ---------molecules info-----------
+    #  ---------reaction info-----------
 
     reactions=[
         {'reactants': ['2.0H2Ogas', '-1.5H2gas', 'star'], 
@@ -44,7 +42,7 @@ def main(
         #{'reactants': ['CCH3'], 'products': ['C', 'CH3']},
         #{'reactants': ['CH3star'], 'products': ['CH3gas', 'star']}
     ],
-    energy_corrections={'H2gas': 0.1},
+    energy_corrections= {}, # For example: {'H2gas': 0.1},
     bulk_compositions=['Pt', 'Ag'],
     crystal_structures=['fcc', 'hcp'],
     facets=['111'],
@@ -57,12 +55,11 @@ def main(
     Use this script to make the right structure for your folders.
     Folders will be created automatically when you run the script with python.
     Start by copying the script to a folder in your username,
-    and assign the right information to the variables below.
+    and assign the right information to the arguments in the function above.
 
     You can change the parameters and run the script several times if you,
     for example, are using different functionals or are doing different reactions
     on different surfaces.
-
 
     Include the phase if necessary:
 
@@ -74,23 +71,26 @@ def main(
     In case of adsorbed species, include the site after 'star' as f.ex
     star@top, star@bridge.
 
-    Remember to include the adsorption energy of reaction intermediates, taking
-    gas phase molecules as references (preferably H20, H2, CH4, CO, NH3).
-    For example, we can write the desorption of CH2 as:
-    CH2* -> CH4(g) - H2(g) + *
-    Here you would have to write 'CH4gas-H2gas' as "products_A" entry.
+    Remember to include the reactions that gives the adsorption energy of 
+    reaction intermediates, taking gas phase molecules as references 
+    (preferably H20, H2, CH4, CO, NH3).
 
-    See examples:
+    For example, we can write the adsorption of CH2 as:
+          CH4(g) - H2(g) + * -> CH2*
+
+    Here you would have to write ['CH4gas', 'H2gas', 'star'] as 'reactants' entry.
+
+    The reaction argument is a list of dictionaries. See examples:
 
     reactions = [
-        {'reactants': ['CH2star@bridge'], 'products': ['CH4gas', '-H2gas', 'star']},
-        {'reactants': ['CH3star@top'], 'products': ['CH4gas', '-0.5H2gas', 'star']}
+        {'reactants': ['CH4gas', '-H2gas', 'star'], 'products': ['CH2star@bridge']},
+        {'reactants': ['CH4gas', '-0.5H2gas', 'star'], 'products': ['CH3star@top']}
         ]
-
-    Reaction info is now a list of dictionaries. 
+    
     A new dictionary is required for each reaction, and should include two lists,
-    'reactants' and 'products'. Remember to include a minus sign in the name when
-    relevant.
+    'reactants' and 'products'. Remember to include a minus sign and prefactor in 
+    the name when relevant. If your reaction is not balanced, you will 
+    receive an error when running the script.
 
     # ---------------surface info---------------------
 
