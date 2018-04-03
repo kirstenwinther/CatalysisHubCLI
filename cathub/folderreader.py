@@ -627,6 +627,6 @@ class FolderReader:
                                          'year': int(self.year),
                                          'ase_ids': self.ase_ids,
                                          'energy_corrections': self.energy_corrections,
-                                         'user': self.user
+                                         'username': self.user
                                    }
 

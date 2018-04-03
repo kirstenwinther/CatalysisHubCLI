@@ -43,12 +43,12 @@ init_commands = [
 
     """CREATE TABLE reaction_system (
     name text,
+    energy_correction numeric,
     ase_id text REFERENCES systems(unique_id) ON DELETE CASCADE,
-    reaction_id integer REFERENCES reaction(id) ON DELETE CASCADE,
-    PRIMARY KEY (reaction_id, ase_id)
+    id integer REFERENCES reaction(id) ON DELETE CASCADE,
+    PRIMARY KEY (id, ase_id)
     )"""
 ]
-
     
 index_statements = [
     'CREATE INDEX idxpubid ON publication (pub_id);',
@@ -370,7 +370,7 @@ class CathubPostgreSQL:
                 b0 = block_id * block_size + 1
                 b1 = (block_id + 1) * block_size + 1
                 if block_id + 1 == n_blocks:
-                    b1 = n_structures
+                    b1 = n_structures + 1
                 #rows = [db._get_row(i) for i in range(b0, b1]
                 #db2 = ase.db.connect(server_name, type='postgresql')
                 #for lala in [0]:
@@ -435,10 +435,13 @@ class CathubPostgreSQL:
                 values = row[0]
 
                 id = self.check(values[1], values[6], values[7],
-                                strict=False)#, values[8])
+                                strict=False)
+                update_rs = False
+                
                 if id is not None:
                     print 'Allready in reaction db with row id = {}'.format(id)
                     id = self.update(id, values)
+                    update_rs = True
                 else:
                     Ncat += 1
                     id = self.write(values)
@@ -447,12 +450,19 @@ class CathubPostgreSQL:
                 cur_lite.execute(select_ase.format(id_lite))
                 rows = cur_lite.fetchall()
                 if write_reaction_system:
+                    if update_rs:
+                        cur.execute('Delete from reaction_system where id={}'.format(id))
                     for row in rows:
                         Ncatstruc += 1
                         values = list(row)
-                        values[2] = id
+                        if len(values) == 3:
+                            values.insert(1, None)
+                            
+                        values[3] = id
+
                         key_str, value_str = get_key_value_str(values,
                                                                table='reaction_system')
+                        
                         insert_command = 'INSERT INTO reaction_system ({}) VALUES ({}) ON CONFLICT DO NOTHING;'.format(key_str, value_str)
                         
                         cur.execute(insert_command)
@@ -497,10 +507,10 @@ class CathubPostgreSQL:
         (""" + placeholder
 
         statement = statement.format(*arguments)
-        print statement
-
+        
         cur.execute(statement)
         rows = cur.fetchall()
+        
         if len(rows) > 0:
             id = rows[0][0]
         else:
