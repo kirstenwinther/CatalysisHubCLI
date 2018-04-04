@@ -122,9 +122,9 @@ class FolderReader:
                 if id is None:
                     id = db.write(key_values)
                     print 'Written to reaction db row id = {}'.format(id)                
-                #elif self.update:                    
-                #    db.update(id, key_value_pairs_reaction)
-                #    print 'Updated reaction db row id = {}'.format(id)
+                elif self.update:                    
+                    db.update(id, key_values)
+                    print 'Updated reaction db row id = {}'.format(id)
                 else:
                     print 'Allready in reaction db with row id = {}'.format(id)
     def write_publication(self, pub_data):
@@ -571,6 +571,9 @@ class FolderReader:
         #    self.energy_corrections.update({'H2gas': 0.1})
         #if 'CH3CHOgas' in self.ase_ids.keys():
         #    self.energy_corrections.update({'CH3CHOgas': 0.15})
+
+        #if self.ase_ids.get('TSemptystar') == self.ase_ids.get('star'):
+        #    del self.ase_ids['TSemptystar']
 
         try:
             reaction_energy, activation_energy = \
