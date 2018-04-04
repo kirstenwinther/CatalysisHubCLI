@@ -439,8 +439,8 @@ class CathubPostgreSQL:
                 update_rs = False
                 
                 if id is not None:
-                    print 'Allready in reaction db with row id = {}'.format(id)
                     id = self.update(id, values)
+                    print 'Updated reaction db with row id = {}'.format(id)
                     update_rs = True
                 else:
                     Ncat += 1
