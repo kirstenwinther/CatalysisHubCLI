@@ -11,5 +11,5 @@ setup(name='cathub',
             [console_scripts]
             cathub=cathub:cli
         ''',
-      long_description=file('README.md').read(),
+      long_description=open('README.md').read(),
     )

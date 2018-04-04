@@ -57,7 +57,8 @@ publication_columns = ['pubId', 'title', 'authors', 'journal', 'year', 'doi', 't
               multiple=True)
 @click.option('--n_results', default=10)
 @click.option('--queries', '-q',  default={}, multiple='True',
-              help="Make a selection on one of the columns: {}\n Examples: \n -q chemicalComposition=~Pt for surfaces containing Pt \n -q reactants=CO for reactions with CO as a reactants".format(reaction_columns))
+              help="Make a selection on one of the columns: {0}\n Examples: \n -q chemicalComposition=~Pt for surfaces containing Pt \n -q reactants=CO for reactions with CO as a reactants".format(reaction_columns))
+# Keep {0} in string.format for python2.6 compatibility
 def reactions(columns, n_results, queries):
     import query
     if not isinstance(queries, dict):
@@ -72,7 +73,8 @@ def reactions(columns, n_results, queries):
                 value = int(value)
                 query_dict.update({key: value})
             except:
-                query_dict.update({key: '{}'.format(value)})
+                query_dict.update({key: '{0}'.format(value)})
+                # Keep {0} in string.format for python2.6 compatibility
     #columns = [columns]
     query.main(table='reactions', columns=columns, n_results=n_results, queries=query_dict)
 
@@ -85,7 +87,8 @@ def reactions(columns, n_results, queries):
               multiple=True)
 @click.option('--n_results', default=10)
 @click.option('--queries', '-q', default={}, multiple=True,
-              help="Make a selection on one of the columns: {}\n Examples: \n -q: \n title=~Evolution \n authors=~bajdich \n year=2017".format(publication_columns))
+              help="Make a selection on one of the columns: {0}\n Examples: \n -q: \n title=~Evolution \n authors=~bajdich \n year=2017".format(publication_columns))
+              # Keep {0} in string.format for python2.6 compatibility
 def publications(columns, n_results, queries):
     import query
     if not isinstance(queries, dict):
@@ -100,7 +103,8 @@ def publications(columns, n_results, queries):
                 value = int(value)
                 query_dict.update({key: value})
             except:
-                query_dict.update({key: '{}'.format(value)})
+                query_dict.update({key: '{0}'.format(value)})
+                # Keep {0} in string.format for python2.6 compatibility
     
     query.main(table='publications', columns=columns, n_results=n_results, queries=query_dict)
 

@@ -150,13 +150,13 @@ class CathubPostgreSQL:
         cur.execute("""SELECT to_regclass('publication');""")
         if cur.fetchone()[0] == None:  # publication doesn't exist
             for init_command in init_commands:
-                print init_command
+                print(init_command)
                 cur.execute(init_command)
             for statement in index_statements:
-                print statement
+                print(statement)
                 cur.execute(statement)
             for statement in tsvector_statements:
-                print statement
+                print(statement)
                 cur.execute(statement)
             con.commit()
         self.initialized = True
@@ -175,7 +175,7 @@ class CathubPostgreSQL:
         cur.execute('GRANT SELECT ON ALL TABLES IN SCHEMA public TO {};'.format(user))
         cur.execute('ALTER ROLE {} SET search_path TO {};'.format(user, user))
         with open('fireworks.txt', 'w') as f:
-            print >> f, password 
+            f.write(password)
 
         con.commit()
         con.close()
@@ -189,7 +189,7 @@ class CathubPostgreSQL:
         con.commit()
         con.close()
 
-        print 'CREATED USER {} WITH PASSWORD {}'.format(user, password)
+        print('CREATED USER {} WITH PASSWORD {}'.format(user, password))
 
         return self
         
@@ -323,7 +323,7 @@ class CathubPostgreSQL:
         """UPDATE publication SET ({}) = ({}) WHERE pub_id='{}';"""\
         .format(key_str, value_str, pub_id)
 
-        print update_command
+        print(update_command)
         cur.execute(update_command)
         
         if self.connection is None:
@@ -384,8 +384,8 @@ class CathubPostgreSQL:
                         db2.write(row, data=row.get('data'), **kvp)
                         nrows += 1
                         
-                print 'Finnished Block {}:'.format(block_id)
-                print '  Completed transfer of {} atomic structures.'.format(nrows)
+                print('Finnished Block {}:'.format(block_id))
+                print('  Completed transfer of {} atomic structures.'.format(nrows))
         
         from cathubsqlite import CathubSQLite
         db = CathubSQLite(filename_sqlite)
@@ -440,12 +440,12 @@ class CathubPostgreSQL:
                 
                 if id is not None:
                     id = self.update(id, values)
-                    print 'Updated reaction db with row id = {}'.format(id)
+                    print('Updated reaction db with row id = {}'.format(id))
                     update_rs = True
                 else:
                     Ncat += 1
                     id = self.write(values)
-                    print 'Written to reaction db row id = {}'.format(id)
+                    print('Written to reaction db row id = {}'.format(id))
 
                 cur_lite.execute(select_ase.format(id_lite))
                 rows = cur_lite.fetchall()
@@ -476,12 +476,12 @@ class CathubPostgreSQL:
             con.commit()
             con.close()
 
-        print 'Inserted into:'
-        print '  systems: {}'.format(nrows)
-        print '  publication: {}'.format(Npub)
-        print '  publication_system: {}'.format(Npubstruc)
-        print '  reaction: {}'.format(Ncat)
-        print '  reaction_system: {}'.format(Ncatstruc)
+        print('Inserted into:')
+        print('  systems: {}'.format(nrows))
+        print('  publication: {}'.format(Npub))
+        print('  publication_system: {}'.format(Npubstruc))
+        print('  reaction: {}'.format(Ncat))
+        print('  reaction_system: {}'.format(Ncatstruc))
             
     def check(self, chemical_composition, reactants, products,
               reaction_energy=None, strict=True):
