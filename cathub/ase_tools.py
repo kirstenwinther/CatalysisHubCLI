@@ -516,15 +516,15 @@ def get_reaction_atoms(reaction):
         else:
             index = states[key].index('star')
             prefactors[key][index] += diff
-            # if key == 'reactants':
-            #     prefactors_TS[key]['star'] += 1  
+            if key == 'reactants':
+                prefactors_TS[key][index] += diff
 
     if n_r > 1: # Balance slabs for transition state
         count_empty = 0
         if '' in reaction_atoms['reactants']:
             index = reaction_atoms['reactants'].index('')
             count_empty = prefactors_TS['reactants'][index]
-            prefactors_TS['reactants'][index] = -(n_r - count_empty -1)
+            prefactors_TS['reactants'][index] = -(n_r - count_empty - 1)
         else:
             reaction_atoms['reactants'].append('')
             prefactors['reactants'].append(0)
