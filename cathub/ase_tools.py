@@ -20,15 +20,15 @@ def check_traj(filename, strict=True, verbose=True):
     try:
         atoms = read_ase(filename)
         if verbose:
-            print 'traj file read!'
+            print('traj file read!')
     except:
         try:
             convert(filename)
             if verbose:
-                print 'Converting to new ase format!'
+                print('Converting to new ase format!')
             atoms = read_ase(filename)
         except:
-            print 'Could not read traj file: {}'.format(filename)
+            print('Could not read traj file: {}'.format(filename))
             return False
 
     try:
@@ -36,9 +36,9 @@ def check_traj(filename, strict=True, verbose=True):
         assert not math.isnan(atoms.get_potential_energy()), 'Energy is NaN!'
     except:
         if strict:
-            raise RuntimeError, 'No energy for .traj file: {}'.format(filename)
+            raise RuntimeError('No energy for .traj file: {}'.format(filename))
         else:
-            print 'No energy for .traj file: {}'.format(filename)
+            print('No energy for .traj file: {}'.format(filename))
             return False
     return True
 
@@ -216,7 +216,7 @@ def get_reaction_energy(traj_files, reaction, reaction_atoms, states,
                     index = reaction_atoms[key].index('')
                     traj_empty = traj_files[key][index]
             traj_tsempty =  traj_files['TSempty'][0]
-            # print traj_tsempty, traj_empty
+            # print(traj_tsempty, traj_empty)
             tsemptydiff = get_energy(traj_tsempty) - get_energy(traj_empty)
         
         for i, traj in enumerate(traj_files['reactants']):
@@ -395,7 +395,7 @@ def check_in_ase(filename, ase_db, energy=None):
             n += 1
             ids.append(row.id)
     if n > 0:
-        print '{} already in ASE database'.format(formula)
+        print('{} already in ASE database'.format(formula))
         id = ids[0]
         unique_id = db_ase.get(id)['unique_id']
         return id, unique_id
@@ -410,7 +410,7 @@ def write_ase(filename, db_file, user=None, data=None, **key_value_pairs):
     db_ase = ase.db.connect(db_file)
     #db_ase.user = user
     id = db_ase.write(atoms, data=data, **key_value_pairs)
-    print 'writing atoms to ASE db row id = {}'.format(id)
+    print('writing atoms to ASE db row id = {}'.format(id))
     unique_id = db_ase.get(id)['unique_id']
     return unique_id
 
@@ -418,7 +418,7 @@ def update_ase(db_file, id,  **key_value_pairs):
     """ Connect to ASE db"""
     db_ase = ase.db.connect(db_file)
     count = db_ase.update(id, **key_value_pairs)
-    print 'Updating {} key value pairs in ASE db row id = {}'.format(count, id)
+    print('Updating {} key value pairs in ASE db row id = {}'.format(count, id))
     return
 
 def get_reaction_from_folder(folder_name):
@@ -443,7 +443,7 @@ def get_reaction_from_folder(folder_name):
         reaction.update({'reactants': [AB],
                          'products': products})
     else:
-        raise AssertionError, 'problem with folder {}'.format(folder_name)
+        raise AssertionError('problem with folder {}'.format(folder_name))
     
     for key, mollist in reaction.iteritems():
         for n, mol in enumerate(mollist):
