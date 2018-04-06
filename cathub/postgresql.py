@@ -49,7 +49,6 @@ init_commands = [
     PRIMARY KEY (id, ase_id)
     )"""
 ]
-
     
 index_statements = [
     'CREATE INDEX idxpubid ON publication (pub_id);',
@@ -142,9 +141,8 @@ class CathubPostgreSQL:
             return        
         cur = con.cursor()
         
-        #set_schema = 'SET search_path TO {};'.format(self.schema)
-        
-        #cur.execute(set_schema)
+        set_schema = 'SET search_path TO {};'.format(self.schema)        
+        cur.execute(set_schema)
         
         from ase.db.postgresql import PostgreSQLDatabase
         PostgreSQLDatabase()._initialize(con)
@@ -152,13 +150,13 @@ class CathubPostgreSQL:
         cur.execute("""SELECT to_regclass('publication');""")
         if cur.fetchone()[0] == None:  # publication doesn't exist
             for init_command in init_commands:
-                print init_command
+                print(init_command)
                 cur.execute(init_command)
             for statement in index_statements:
-                print statement
+                print(statement)
                 cur.execute(statement)
             for statement in tsvector_statements:
-                print statement
+                print(statement)
                 cur.execute(statement)
             con.commit()
         self.initialized = True
@@ -177,7 +175,7 @@ class CathubPostgreSQL:
         cur.execute('GRANT SELECT ON ALL TABLES IN SCHEMA public TO {};'.format(user))
         cur.execute('ALTER ROLE {} SET search_path TO {};'.format(user, user))
         with open('fireworks.txt', 'w') as f:
-            print >> f, password 
+            f.write(password)
 
         con.commit()
         con.close()
@@ -191,7 +189,7 @@ class CathubPostgreSQL:
         con.commit()
         con.close()
 
-        print 'CREATED USER {} WITH PASSWORD {}'.format(user, password)
+        print('CREATED USER {} WITH PASSWORD {}'.format(user, password))
 
         return self
         
@@ -325,7 +323,7 @@ class CathubPostgreSQL:
         """UPDATE publication SET ({}) = ({}) WHERE pub_id='{}';"""\
         .format(key_str, value_str, pub_id)
 
-        print update_command
+        print(update_command)
         cur.execute(update_command)
         
         if self.connection is None:
@@ -386,8 +384,8 @@ class CathubPostgreSQL:
                         db2.write(row, data=row.get('data'), **kvp)
                         nrows += 1
                         
-                print 'Finnished Block {}:'.format(block_id)
-                print '  Completed transfer of {} atomic structures.'.format(nrows)
+                print('Finnished Block {}:'.format(block_id))
+                print('  Completed transfer of {} atomic structures.'.format(nrows))
         
         from cathubsqlite import CathubSQLite
         db = CathubSQLite(filename_sqlite)
@@ -436,16 +434,18 @@ class CathubPostgreSQL:
                     continue
                 values = row[0]
 
-                id = self.check(values[1], values[6], values[7], values[8])
+                id = self.check(values[1], values[6], values[7],
+                                strict=False)
                 update_rs = False
+                
                 if id is not None:
-                    print 'Allready in reaction db with row id = {}'.format(id)
+                    print('Allready in reaction db with row id = {}'.format(id))
                     id = self.update(id, values)
                     update_rs = True
                 else:
                     Ncat += 1
                     id = self.write(values)
-                    print 'Written to reaction db row id = {}'.format(id)
+                    print('Written to reaction db row id = {}'.format(id))
 
                 cur_lite.execute(select_ase.format(id_lite))
                 rows = cur_lite.fetchall()
@@ -455,11 +455,14 @@ class CathubPostgreSQL:
                     for row in rows:
                         Ncatstruc += 1
                         values = list(row)
-
+                        if len(values) == 3:
+                            values.insert(1, None)
+                            
                         values[3] = id
+
                         key_str, value_str = get_key_value_str(values,
                                                                table='reaction_system')
-
+                        
                         insert_command = 'INSERT INTO reaction_system ({}) VALUES ({}) ON CONFLICT DO NOTHING;'.format(key_str, value_str)
                         
                         cur.execute(insert_command)
@@ -473,25 +476,41 @@ class CathubPostgreSQL:
             con.commit()
             con.close()
 
-        print 'Inserted into:'
-        print '  systems: {}'.format(nrows)
-        print '  publication: {}'.format(Npub)
-        print '  publication_system: {}'.format(Npubstruc)
-        print '  reaction: {}'.format(Ncat)
-        print '  reaction_system: {}'.format(Ncatstruc)
+        print('Inserted into:')
+        print('  systems: {}'.format(nrows))
+        print('  publication: {}'.format(Npub))
+        print('  publication_system: {}'.format(Npubstruc))
+        print('  reaction: {}'.format(Ncat))
+        print('  reaction_system: {}'.format(Ncatstruc))
             
-    def check(self, chemical_composition, reactants, products, reaction_energy):
+    def check(self, chemical_composition, reactants, products,
+              reaction_energy=None, strict=True):
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
+        keys = 'chemical_composition,  reactants, products'
+        values = [chemical_composition, reactants, products]
+        placeholder = """'{}', '{}', '{}'"""
+        if strict:
+            assert reaction_energy is not None
+            placeholder += ", {}"
+            keys += ', reaction_energy'
+            values.append(reaction_energy)
+
+        placeholder += """);"""
+        arguments = [keys] + values
+
         statement = \
         """SELECT id 
         FROM reaction WHERE 
-        (chemical_composition,  reactants, products, reaction_energy) = 
-        ('{}', '{}', '{}', {})""".format(chemical_composition, reactants, products, reaction_energy)
-        #argument = [reaction_energy]
+        ({}) = 
+        (""" + placeholder
+
+        statement = statement.format(*arguments)
+        
         cur.execute(statement)
         rows = cur.fetchall()
+        
         if len(rows) > 0:
             id = rows[0][0]
         else:

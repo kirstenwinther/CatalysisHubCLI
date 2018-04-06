@@ -220,7 +220,7 @@ class CathubSQLite:
                   values['activation_energy'],
                   values['dft_code'],
                   values['dft_functional'],
-                  values['user'],
+                  values['username'],
                   values['pub_id']#,
                   #values['doi'],
                   #int(values['year']),
@@ -255,6 +255,8 @@ class CathubSQLite:
         values['year'] = int(values['year'])
         pub_id = values['pub_id']
         ase_ids = values['ase_ids']
+        energy_corrections = values['energy_corrections']
+        
         if ase_ids is not None:
             self.check_ase_ids(values, ase_ids)
         else:
@@ -276,9 +278,9 @@ class CathubSQLite:
 
         reaction_structure_values = []
         for name, ase_id in ase_ids.items():
-            reaction_structure_values.append([name, ase_id, id])
+            reaction_structure_values.append([name, energy_corrections.get(name), ase_id, id])
             cur.execute('INSERT OR IGNORE INTO publication_system(ase_id, pub_id) VALUES (?, ?)', [ase_id, pub_id])
-        cur.executemany('INSERT INTO reaction_system VALUES (?, ?, ?)',
+        cur.executemany('INSERT INTO reaction_system VALUES (?, ?, ?, ?)',
                         reaction_structure_values)
             
         if self.connection is None:

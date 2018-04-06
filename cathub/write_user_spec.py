@@ -11,7 +11,7 @@ try:  #sherlock 1 or 2
 except:  # SUNCAT
     catbase = '/nfs/slac/g/suncatfs/data_catapp/'
 
-print catbase
+print(catbase)
 
 user, pub, DFT, XC, reaction, metal, facet, site, final = argv[1:10]
 
