@@ -16,10 +16,12 @@ def folder2db(folder_name, debug, skip_folders, goto_reaction):
     import os
     import folder2db
 
+    folder_name = folder_name.strip('/')
     skip = []
     for s in skip_folders.split(', '):
         for sk in s.split(','):
             skip.append(sk)
+    
     folder2db.main(folder_name, debug, skip, goto_reaction)
 
 
