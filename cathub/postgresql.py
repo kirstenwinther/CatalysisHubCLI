@@ -434,8 +434,8 @@ class CathubPostgreSQL:
                     continue
                 values = row[0]
 
-                id = self.check(values[1], values[6], values[7],
-                                strict=False)
+                id = self.check(values[13], values[1], values[6], values[7], values[8],
+                                strict=True)
                 update_rs = False
                 
                 if id is not None:
@@ -483,14 +483,14 @@ class CathubPostgreSQL:
         print('  reaction: {}'.format(Ncat))
         print('  reaction_system: {}'.format(Ncatstruc))
             
-    def check(self, chemical_composition, reactants, products,
+    def check(self, pub_id, chemical_composition, reactants, products,
               reaction_energy=None, strict=True):
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
-        keys = 'chemical_composition,  reactants, products'
-        values = [chemical_composition, reactants, products]
-        placeholder = """'{}', '{}', '{}'"""
+        keys = 'pub_id, chemical_composition,  reactants, products'
+        values = [pub_id, chemical_composition, reactants, products]
+        placeholder = """'{}', '{}', '{}', '{}'"""
         if strict:
             assert reaction_energy is not None
             placeholder += ", {}"
