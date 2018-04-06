@@ -445,8 +445,13 @@ def get_reaction_from_folder(folder_name):
     else:
         raise AssertionError('problem with folder {}'.format(folder_name))
     
+    sites = {}
     for key, mollist in reaction.iteritems():
         for n, mol in enumerate(mollist):
+            if '@' in mol:
+                mol, site = mol.split('@')
+                sites.update({mol: site})
+                reaction[key][n] = mol
             if 'gas' not in mol and 'star' not in mol:
                 reaction[key][n] = mol + 'star'
 
@@ -460,7 +465,7 @@ def get_reaction_from_folder(folder_name):
     
     #from tools import check_reaction
     #check_reaction(reaction['reactants'], reaction['products'])
-    return reaction
+    return reaction, sites
 
 
 def get_reaction_atoms(reaction):
