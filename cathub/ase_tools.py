@@ -445,9 +445,14 @@ def get_reaction_from_folder(folder_name):
                          'products': products})
     else:
         raise AssertionError('problem with folder {}'.format(folder_name))
-
+    
+    sites = {}
     for key, mollist in reaction.items():
         for n, mol in enumerate(mollist):
+            if '@' in mol:
+                mol, site = mol.split('@')
+                sites.update({mol: site})
+                reaction[key][n] = mol
             if 'gas' not in mol and 'star' not in mol:
                 reaction[key][n] = mol + 'star'
 
@@ -461,7 +466,7 @@ def get_reaction_from_folder(folder_name):
 
     #from tools import check_reaction
     #check_reaction(reaction['reactants'], reaction['products'])
-    return reaction
+    return reaction, sites
 
 
 def get_reaction_atoms(reaction):
@@ -517,15 +522,20 @@ def get_reaction_atoms(reaction):
         else:
             index = states[key].index('star')
             prefactors[key][index] += diff
+<<<<<<< HEAD
             # if key == 'reactants':
             #     prefactors_TS[key]['star'] += 1
+=======
+            if key == 'reactants':
+                prefactors_TS[key][index] += diff
+>>>>>>> kirsten/master
 
     if n_r > 1: # Balance slabs for transition state
         count_empty = 0
         if '' in reaction_atoms['reactants']:
             index = reaction_atoms['reactants'].index('')
             count_empty = prefactors_TS['reactants'][index]
-            prefactors_TS['reactants'][index] = -(n_r - count_empty -1)
+            prefactors_TS['reactants'][index] = -(n_r - count_empty - 1)
         else:
             reaction_atoms['reactants'].append('')
             prefactors['reactants'].append(0)
