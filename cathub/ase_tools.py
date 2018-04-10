@@ -522,13 +522,8 @@ def get_reaction_atoms(reaction):
         else:
             index = states[key].index('star')
             prefactors[key][index] += diff
-<<<<<<< HEAD
-            # if key == 'reactants':
-            #     prefactors_TS[key]['star'] += 1
-=======
             if key == 'reactants':
                 prefactors_TS[key][index] += diff
->>>>>>> kirsten/master
 
     if n_r > 1: # Balance slabs for transition state
         count_empty = 0
