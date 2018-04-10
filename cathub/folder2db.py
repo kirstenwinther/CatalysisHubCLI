@@ -1,8 +1,12 @@
 import os
 from sys import argv
-from folderreader import FolderReader
+#from folderreader import FolderReader
 
-def main(folder_name, debug=False, skip=[], goto_reaction=None):
+def main(folder_name, debug=False, skip=[], goto_reaction=None, old=False):
+    if old:
+        from folderreader_old import FolderReader
+    else:
+        from folderreader import FolderReader
     FR = FolderReader(folder_name=folder_name, debug=debug)
     FR.write(skip=skip, goto_reaction=goto_reaction)
 

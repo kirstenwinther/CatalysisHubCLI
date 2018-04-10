@@ -233,12 +233,12 @@ class FolderReader:
         folder_name = root.split('/')[-1]
 
         #try:
-        self.reaction = get_reaction_from_folder(folder_name)  # reaction dict
+        self.reaction, sites = get_reaction_from_folder(folder_name)  # reaction dict
         #except:
         #    print('ERROR: omitting directory {}'.format(root))
         #    dirs = []
         #    return False
-
+        
         print('-------------- REACTION:  {} --> {} -----------------'\
             .format('+'.join(self.reaction['reactants']),
                     '+'.join(self.reaction['products'])))
@@ -566,14 +566,15 @@ class FolderReader:
 
         reaction_energy = None
         activation_energy = None
+                
+        if self.user == 'jschum':
+            if 'H2gas' in self.ase_ids.keys():
+                self.energy_corrections.update({'H2gas': 0.1})
+            if 'CH3CHOgas' in self.ase_ids.keys():
+                self.energy_corrections.update({'CH3CHOgas': 0.15})
 
-        #if 'H2gas' in self.ase_ids.keys():
-        #    self.energy_corrections.update({'H2gas': 0.1})
-        #if 'CH3CHOgas' in self.ase_ids.keys():
-        #    self.energy_corrections.update({'CH3CHOgas': 0.15})
-
-        #if self.ase_ids.get('TSemptystar') == self.ase_ids.get('star'):
-        #    del self.ase_ids['TSemptystar']
+            if self.ase_ids.get('TSemptystar') == self.ase_ids.get('star'):
+                del self.ase_ids['TSemptystar']
 
         try:
             reaction_energy, activation_energy = \
