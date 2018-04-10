@@ -8,7 +8,7 @@ def main(table, columns, n_results, queries):
                           columns=columns,
                           n_results=n_results,
                           queries=queries)
-    
+
     execute(query)
 
 
@@ -55,7 +55,7 @@ def graphql_query(table='reactions',
     statement += '    }\n'
     statement += '  }\n'
     statement += '}}'
-    
+
     return  statement
 
 
@@ -66,5 +66,5 @@ if __name__ == '__main__':
                           'products'],
                  n_results=10,
                  queries={'chemicalComposition': "~Pt"})
-    
+
 
