@@ -120,7 +120,7 @@ def get_formula_from_numbers(numbers):
 def get_numbers_from_formula(formula):
     atoms = Atoms(formula)
     return get_atomic_numbers(atoms)
-    
+
 
 def clear_state(name):
     name = name.replace('*', '').replace('(g)', '')
@@ -183,14 +183,15 @@ def get_state(name):
     return state
 
 
-def get_reaction_energy(traj_files, reaction, reaction_atoms, states, 
+def get_reaction_energy(traj_files, reaction, reaction_atoms, states,
                         prefactors, prefactors_TS, energy_corrections):
 
     energies = {}
     for key in traj_files.keys():
         energies.update({key: ['' for n in range(len(traj_files[key]))]})
-    for key, trajlist in traj_files.iteritems():
-        for i, traj in enumerate(trajlist):            
+    for key, trajlist in traj_files.items():
+        # in python3 iteritems goes away in favor of items
+        for i, traj in enumerate(trajlist):
             try:
                 trajname =  clear_prefactor(reaction[key][i])
             except:
@@ -201,7 +202,7 @@ def get_reaction_energy(traj_files, reaction, reaction_atoms, states,
                 Ecor = 0
             energies[key][i] = prefactors[key][i] * (get_energy(traj) + Ecor)
 
-    # Reaction energy:        
+    # Reaction energy:
     energy_reactants = np.sum(energies['reactants'])
     energy_products = np.sum(energies['products'])
 
@@ -209,7 +210,7 @@ def get_reaction_energy(traj_files, reaction, reaction_atoms, states,
 
     # Activation energy
     if 'TS' in traj_files.keys():
-        # Is a different empty surface used for the TS? 
+        # Is a different empty surface used for the TS?
         if 'TSempty' in traj_files.keys():
             for key in reaction_atoms.keys():
                 if '' in  reaction_atoms[key]:
@@ -218,7 +219,7 @@ def get_reaction_energy(traj_files, reaction, reaction_atoms, states,
             traj_tsempty =  traj_files['TSempty'][0]
             # print(traj_tsempty, traj_empty)
             tsemptydiff = get_energy(traj_tsempty) - get_energy(traj_empty)
-        
+
         for i, traj in enumerate(traj_files['reactants']):
             try:
                 trajname =  clear_prefactor(reaction['reactants'][i])
@@ -233,7 +234,7 @@ def get_reaction_energy(traj_files, reaction, reaction_atoms, states,
             if 'TSempty' in traj_files.keys() and \
                     states['reactants'][i] == 'star':
                 energies['reactants'][i] += prefactors_TS['reactants'][i]\
-                    * tsemptydiff     
+                    * tsemptydiff
         energy_reactants = np.sum(energies['reactants'])
         energy_TS = energies['TS'][0]
         activation_energy = energy_TS - energy_reactants
@@ -444,20 +445,20 @@ def get_reaction_from_folder(folder_name):
                          'products': products})
     else:
         raise AssertionError('problem with folder {}'.format(folder_name))
-    
-    for key, mollist in reaction.iteritems():
+
+    for key, mollist in reaction.items():
         for n, mol in enumerate(mollist):
             if 'gas' not in mol and 'star' not in mol:
                 reaction[key][n] = mol + 'star'
 
 
-    for key, mollist in reaction.iteritems():
+    for key, mollist in reaction.items():
         n_star = mollist.count('star')
         if n_star > 1:
             for n in range(n_star):
                 mollist.remove('star')
             mollist.append(str(n_star) + 'star')
-    
+
     #from tools import check_reaction
     #check_reaction(reaction['reactants'], reaction['products'])
     return reaction
@@ -473,7 +474,7 @@ def get_reaction_atoms(reaction):
     states = {'reactants': [],
               'products': []}
 
-    for key, mollist in reaction.iteritems():
+    for key, mollist in reaction.items():
         for molecule in mollist:
             atoms, prefactor = get_atoms(molecule)
             reaction_atoms[key].append(atoms)
@@ -488,7 +489,7 @@ def get_reaction_atoms(reaction):
     n_star = {'reactants': 0,
               'products': 0}
 
-    for key, statelist in states.iteritems():
+    for key, statelist in states.items():
         for j, s in enumerate(statelist):
             if s == 'star':
                 n_star[key] += prefactors[key][j]
@@ -499,13 +500,13 @@ def get_reaction_atoms(reaction):
     diff = n_p - n_r
     if abs(diff) > 0:
         if diff > 0:  # add empty slabs to left-hand side
-            n_r += diff 
+            n_r += diff
             key = 'reactants'
         else:  # add to right-hand side
             diff *= -1  # diff should be positive
             n_p += diff
             key = 'products'
-        
+
         if '' not in reaction_atoms[key]:
             reaction[key].append('star')
             prefactors[key].append(diff)
@@ -517,7 +518,7 @@ def get_reaction_atoms(reaction):
             index = states[key].index('star')
             prefactors[key][index] += diff
             # if key == 'reactants':
-            #     prefactors_TS[key]['star'] += 1  
+            #     prefactors_TS[key]['star'] += 1
 
     if n_r > 1: # Balance slabs for transition state
         count_empty = 0
@@ -529,7 +530,7 @@ def get_reaction_atoms(reaction):
             reaction_atoms['reactants'].append('')
             prefactors['reactants'].append(0)
             states['reactants'].append('star')
-            prefactors_TS['reactants'].append(-n_r + 1)            
+            prefactors_TS['reactants'].append(-n_r + 1)
     else:
         if '' in reaction_atoms['reactants']:
             index = reaction_atoms['reactants'].index('')
@@ -547,6 +548,6 @@ def debug_assert(expression, message, debug=False):
             return False
     else:
         assert expression, message
-    
+
     return True
 # def handle_gas_species():

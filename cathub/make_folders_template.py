@@ -37,7 +37,7 @@ def main(
     #  ---------reaction info-----------
 
     reactions=[
-        {'reactants': ['2.0H2Ogas', '-1.5H2gas', 'star'], 
+        {'reactants': ['2.0H2Ogas', '-1.5H2gas', 'star'],
          'products': ['OOHstar@ontop']},
         #{'reactants': ['CCH3'], 'products': ['C', 'CH3']},
         #{'reactants': ['CH3star'], 'products': ['CH3gas', 'star']}
@@ -71,8 +71,8 @@ def main(
     In case of adsorbed species, include the site after 'star' as f.ex
     star@top, star@bridge.
 
-    Remember to include the reactions that gives the adsorption energy of 
-    reaction intermediates, taking gas phase molecules as references 
+    Remember to include the reactions that gives the adsorption energy of
+    reaction intermediates, taking gas phase molecules as references
     (preferably H20, H2, CH4, CO, NH3).
 
     For example, we can write the adsorption of CH2 as:
@@ -86,10 +86,10 @@ def main(
         {'reactants': ['CH4gas', '-H2gas', 'star'], 'products': ['CH2star@bridge']},
         {'reactants': ['CH4gas', '-0.5H2gas', 'star'], 'products': ['CH3star@top']}
         ]
-    
+
     A new dictionary is required for each reaction, and should include two lists,
-    'reactants' and 'products'. Remember to include a minus sign and prefactor in 
-    the name when relevant. If your reaction is not balanced, you will 
+    'reactants' and 'products'. Remember to include a minus sign and prefactor in
+    the name when relevant. If your reaction is not balanced, you will
     receive an error when running the script.
 
     # ---------------surface info---------------------
@@ -141,7 +141,7 @@ def main(
         energy_txt = publication_base + 'energy_corrections.txt'
         json.dump(energy_corrections, open(energy_txt, 'wb'))
 
-    
+
     def create(path):
         if not os.path.exists(path):
             os.mkdir(path)
@@ -155,13 +155,13 @@ def main(
     ads_names = []
     from ase_tools import get_state, clear_state, clear_prefactor
     for i in range(len(reactions)):
-        rnames = [r.split('@')[0] for r in reactions[i]['reactants'] + 
+        rnames = [r.split('@')[0] for r in reactions[i]['reactants'] +
                   reactions[i]['products']]
-        states = [get_state(r) for r in rnames]        
+        states = [get_state(r) for r in rnames]
         gas_names += [clear_state(clear_prefactor(rnames[i]))
                       for i in range(len(states)) if states[i] == 'gas']
 
-        
+
     for name in set(gas_names):
         with open(gas_base + 'MISSING: {}_gas.traj'.format(name), 'w'):
             pass
@@ -182,12 +182,12 @@ def main(
                     rname = '_'.join(reactions[i]['reactants'])
                     pname = '_'.join(reactions[i]['products'])
                     reaction_name = '__'.join([rname, pname])
-                    base = create(reaction_base + reaction_name + '/')      
-                    rnames = [r.split('@')[0] for r in reactions[i]['reactants'] + 
+                    base = create(reaction_base + reaction_name + '/')
+                    rnames = [r.split('@')[0] for r in reactions[i]['reactants'] +
                               reactions[i]['products']]
                     states = [get_state(r) for r in rnames]
-        
-                    ads_names = [clear_prefactor(clear_state(rnames[i])) 
+
+                    ads_names = [clear_prefactor(clear_state(rnames[i]))
                                  for i in range(len(states)) if states[i] == 'star']
 
                     for ads in ads_names:
