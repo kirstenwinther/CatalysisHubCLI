@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/mhoffman/CatalysisHubCLI.svg?branch=master)](https://travis-ci.org/mhoffman/CatalysisHubCLI)
+[![Build Status](https://travis-ci.org/{GITHUB_USER}/{REPO}.svg?branch={BRANCH})](https://travis-ci.org/{GITHUB_USER}/{REPO})
 ## Installation
 
 Install with pip using
