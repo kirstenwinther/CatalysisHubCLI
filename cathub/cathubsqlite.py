@@ -24,7 +24,7 @@ init_commands = [
     pub_id text REFERENCES publication(pub_id),
     PRIMARY KEY (pub_id, ase_id)
     );""",
-    
+
     """CREATE TABLE reaction (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     chemical_composition text,
@@ -101,7 +101,7 @@ class CathubSQLite:
 
         if cur.fetchone()[0] > 0:
             self.update_names(con)
-            
+
         cur = con.execute(
             'SELECT COUNT(*) FROM sqlite_master WHERE name="reaction"')
 
@@ -125,8 +125,8 @@ class CathubSQLite:
             con.execute(statement)
         con.commit()
         return
-        
-        
+
+
     def read(self, id, table='reaction'):
         con = self.connection or self._connect()
         self._initialize(con)
@@ -136,12 +136,12 @@ class CathubSQLite:
                                                                       id))
         row = cur.fetchall()
 
-        if len(row) == 14:  # Old schema  
+        if len(row) == 14:  # Old schema
             row = row.insert(5, 'None')
 
         return row
 
-    
+
     def write_publication(self, values):
         con = self.connection or self._connect()
         self._initialize(con)
@@ -179,15 +179,15 @@ class CathubSQLite:
 
         reaction_species = set(values['reactants'].keys() +
                                values['products'].keys())
-                        
+
         n_split = 0
         for spec in ase_ids.keys():
             if '_' in spec:
                 n_split += 1
-            
+
         assert len(reaction_species) <= len(ase_values) + n_split, 'ASE ids missing!'
         return
-    
+
     def write(self, values, data=None):
         con = self.connection or self._connect()
         self._initialize(con)
@@ -251,24 +251,24 @@ class CathubSQLite:
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
-        
+
         values['year'] = int(values['year'])
         pub_id = values['pub_id']
         ase_ids = values['ase_ids']
         energy_corrections = values['energy_corrections']
-        
+
         if ase_ids is not None:
             self.check_ase_ids(values, ase_ids)
         else:
             ase_ids = {}
-            
+
         key_list, value_list = get_key_value_list(key_names, values)
         N_keys = len(key_list)
-        
+
         value_strlist = get_value_strlist(value_list)
         execute_str = ', '.join('{}={}'.format(key_list[i], value_strlist[i])
                                 for i in range(N_keys))
-                
+
         update_command = 'UPDATE reaction SET {} WHERE id = {};'\
             .format(execute_str, id)
         cur.execute(update_command)
@@ -282,7 +282,7 @@ class CathubSQLite:
             cur.execute('INSERT OR IGNORE INTO publication_system(ase_id, pub_id) VALUES (?, ?)', [ase_id, pub_id])
         cur.executemany('INSERT INTO reaction_system VALUES (?, ?, ?, ?)',
                         reaction_structure_values)
-            
+
         if self.connection is None:
             con.commit()
             con.close()
@@ -291,6 +291,8 @@ class CathubSQLite:
 
     def get_last_id(self, cur):
         cur.execute('SELECT seq FROM sqlite_sequence WHERE name="reaction"')
+        print('SELECT seq FROM sqlite_sequence WHERE name="reaction"')
+        print(cur)
         id = cur.fetchone()[0]
         return id
 
@@ -298,14 +300,14 @@ class CathubSQLite:
         cur.execute('SELECT seq FROM sqlite_sequence WHERE name="publication"')
         id = cur.fetchone()[0]
         return id
-    
+
     def check(self, chemical_composition, reaction_energy):
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
         statement = 'SELECT reaction.id FROM \n reaction \n WHERE \n reaction.chemical_composition=? and reaction.reaction_energy=?'
         argument = [chemical_composition, reaction_energy]
-        
+
         cur.execute(statement, argument)
         rows = cur.fetchall()
         if len(rows) > 0:
@@ -327,14 +329,14 @@ class CathubSQLite:
         else:
             id = None
         return id
-        
+
     def check_publication(self, pub_id):
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
         statement = 'SELECT id FROM \n publication \n WHERE \n publication.pub_id=?'
         argument = [pub_id]
-        
+
         cur.execute(statement, argument)
         rows = cur.fetchall()
         if len(rows) > 0:
@@ -349,7 +351,7 @@ class CathubSQLite:
         cur = con.cursor()
         statement = 'SELECT id FROM \n publication_system \n WHERE \n publication.pub_id=? and publication.ase_id=?'
         argument = [pub_id, ase_id]
-        
+
         cur.execute(statement, argument)
         rows = cur.fetchall()
         if len(rows) > 0:
@@ -358,7 +360,7 @@ class CathubSQLite:
             id = None
         return id
 
-    
+
 
 def get_key_value_str(values):
     key_str = 'chemical_composition, surface_composition, facet, sites, reactants, products, reaction_energy, activation_energy, dft_code, dft_functional, publication, doi, year, ase_ids, user'
@@ -372,22 +374,22 @@ def get_key_value_str(values):
             value_str += ", {}".format('NULL')
         else:
             value_str += ", {}".format(v)
-        
+
     return key_str, value_str
 
 
 def get_key_value_list(key_list, values, table='reaction'):
-    
-    total_keys = {'reaction': ['chemical_composition', 'surface_composition', 'facet', 
-                               'sites', 'coverages', 'reactants', 'products', 'reaction_energy', 
-                               'activation_energy', 'dft_code', 'dft_functional', 
+
+    total_keys = {'reaction': ['chemical_composition', 'surface_composition', 'facet',
+                               'sites', 'coverages', 'reactants', 'products', 'reaction_energy',
+                               'activation_energy', 'dft_code', 'dft_functional',
                                'username', 'pub_id'],
                   'publication': ['pub_id', 'title', 'authors', 'journal', 'volume', 'number',
                                   'pages', 'year', 'publisher', 'doi', 'tags'],
                   'reaction_system': ['name', 'energy_correction', 'ase_id', 'reaction_id'],
                   'publication_system': ['ase_id, pub_id']}
     total_key_list = total_keys[table]
-    
+
     if key_list == 'all':
         key_list = total_key_list
     else:
