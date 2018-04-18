@@ -12,15 +12,18 @@ def cli():
 @click.option('--debug', default=False)
 @click.option('--skip-folders', default='', help="""subfolders not to read, given as the name of a single folder, or a string with names of more folders seperated by ', '""")
 @click.option('--goto-reaction', help="""name of reaction folder to skip to""")
-def folder2db(folder_name, debug, skip_folders, goto_reaction):
+@click.option('--old', default=False)
+def folder2db(folder_name, debug, skip_folders, goto_reaction, old):
     import os
-    import folder2db
+    import cathub.folder2db
 
+    folder_name = folder_name.strip('/')
     skip = []
     for s in skip_folders.split(', '):
         for sk in s.split(','):
             skip.append(sk)
-    folder2db.main(folder_name, debug, skip, goto_reaction)
+    
+    folder2db.main(folder_name, debug, skip, goto_reaction, old)
 
 
 @cli.command()
@@ -32,16 +35,19 @@ def folder2db(folder_name, debug, skip_folders, goto_reaction):
 @click.option('--write_publication', default=True, type=bool)
 @click.option('--block-size', default=1000, type=int)
 @click.option('--start-block', default=0, type=int)
+@click.option('--db_user', default='catroot', type=str)
 def db2server(dbfile, start_id, write_reaction, write_ase, write_publication,
-              write_reaction_system, block_size, start_block):
+              write_reaction_system, block_size, start_block, db_user):
     import os
-    import db2server
+    import cathub.db2server
     db2server.main(dbfile, start_id=start_id, write_reaction=write_reaction,
                    write_ase=write_ase,
                    write_publication=write_publication,
                    write_reaction_system=write_reaction_system,
                    block_size=block_size,
-                   start_block=start_block)
+                   start_block=start_block,
+                   db_user=db_user,
+                   )
 
 
 reaction_columns = ['chemicalComposition', 'surfaceComposition',
@@ -60,7 +66,7 @@ publication_columns = ['pubId', 'title', 'authors', 'journal', 'year', 'doi', 't
               help="Make a selection on one of the columns: {0}\n Examples: \n -q chemicalComposition=~Pt for surfaces containing Pt \n -q reactants=CO for reactions with CO as a reactants".format(reaction_columns))
 # Keep {0} in string.format for python2.6 compatibility
 def reactions(columns, n_results, queries):
-    import query
+    import cathub.query
     if not isinstance(queries, dict):
         query_dict = {}
         for q in queries:
@@ -79,7 +85,7 @@ def reactions(columns, n_results, queries):
     query.main(table='reactions', columns=columns, n_results=n_results, queries=query_dict)
 
 
-    
+
 @cli.command()
 @click.option('--columns', '-c',
               default = ('title', 'authors', 'journal', 'year'),
@@ -90,7 +96,7 @@ def reactions(columns, n_results, queries):
               help="Make a selection on one of the columns: {0}\n Examples: \n -q: \n title=~Evolution \n authors=~bajdich \n year=2017".format(publication_columns))
               # Keep {0} in string.format for python2.6 compatibility
 def publications(columns, n_results, queries):
-    import query
+    import cathub.query
     if not isinstance(queries, dict):
         query_dict = {}
         for q in queries:
@@ -105,11 +111,11 @@ def publications(columns, n_results, queries):
             except:
                 query_dict.update({key: '{0}'.format(value)})
                 # Keep {0} in string.format for python2.6 compatibility
-    
+
     query.main(table='publications', columns=columns, n_results=n_results, queries=query_dict)
 
 
-    
+
 @cli.command()
 @click.argument('template')
 @click.option('--create-template', is_flag=True, help="Create an empty template file.")
@@ -122,23 +128,23 @@ def make_folders(create_template, template, custom_base, diagnose):
 
     Use this command make the right structure for your folders
     for submitting data for Catalysis Hub.
-    
+
     Start by creating a template file by calling:
-    
+
     $ cathub make_folders --create-template <template_name>
 
     Then open the template and modify it to so that it contains the information
     for you data. You will need to enter publication/dataset information,
-    and specify the types of surfaces, facets and reactions. 
+    and specify the types of surfaces, facets and reactions.
 
-    The 'reactions' key is a list of dictionaries. 
-    A new dictionary is required for each reaction, and should include two 
-    lists, 'reactants' and 'products'. Remember to balance the equation and 
+    The 'reactions' key is a list of dictionaries.
+    A new dictionary is required for each reaction, and should include two
+    lists, 'reactants' and 'products'. Remember to balance the equation and
     include a minus sign in the name when relevant.
 
     'reactions': [
         {
-          'reactants': ['CCH3star@ontop'], 
+          'reactants': ['CCH3star@ontop'],
           'products': ['Cstar@hollow', 'CH3star@ontop']
         },
         {
@@ -155,16 +161,16 @@ def make_folders(create_template, template, custom_base, diagnose):
       '@site' (i.e. OHstar in bridge-> OHstar@bridge)
 
     Then, save the template and call:
-    
+
     $ cathub make_folders <template_name>
 
-    And folders will be created automatically. 
+    And folders will be created automatically.
 
     You can create several templates and call make_folders again
-    if you, for example, are using different functionals or are 
+    if you, for example, are using different functionals or are
     doing different reactions on different surfaces.
     """
-    import make_folders_template
+    import cathub.make_folders_template
     import json
     import os
 
@@ -184,7 +190,7 @@ def make_folders(create_template, template, custom_base, diagnose):
         'DFT_code': 'Quantum Espresso',
         'DFT_functional': 'BEEF-vdW',
         'reactions': [
-                {'reactants': ['2.0H2Ogas', '-1.5H2gas', 'star'], 
+                {'reactants': ['2.0H2Ogas', '-1.5H2gas', 'star'],
                  'products': [ 'OOHstar@top']},
                 {'reactants': ['CCH3star@bridge'], 'products': ['Cstar@hollow', 'CH3star@ontop']},
                 {'reactants': ['CH4gas', '-0.5H2gas', 'star'], 'products': ['CH3star@ontop']}
@@ -262,4 +268,4 @@ def psql_server_connect():
 @click.argument('final_level')
 def write_user_spec():
     """Write JSON specfile for single DFT calculation."""
-    import write_user_spec
+    import cathub.write_user_spec

@@ -1,6 +1,6 @@
 import json
 from sys import argv
-import os 
+import os
 
 try:  #sherlock 1 or 2
     sherlock = os.environ['SHERLOCK']
@@ -29,8 +29,8 @@ user_dict = {'user': user,
              'site_level': site,
              'final_level': int(final)
              }
-    
-user_file = '{}winther/user_specific/{}.txt'.format(catbase, user) 
+
+user_file = '{0}winther/user_specific/{1}.txt'.format(catbase, user)
 json.dump(user_dict, open(user_file, 'w'))
 
 

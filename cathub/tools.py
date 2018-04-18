@@ -58,7 +58,7 @@ def add_atoms(atoms_list):
 
 def check_reaction(reactants, products):
     """
-    check the stoichiometry and format of chemical reaction used for 
+    check the stoichiometry and format of chemical reaction used for
     folder structure.
     list of reactants -> list of products
     """
@@ -96,7 +96,7 @@ def get_bases(folder_name):
         elif sherlock == '2':
             catbase = '/home/users/winther/data_catapp/'
 
-    elif 'SLAC_ENVIRON' in os.environ:        
+    elif 'SLAC_ENVIRON' in os.environ:
         catbase = '/nfs/slac/g/suncatfs/data_catapp/'
     else:
         catbase = './'
@@ -112,4 +112,4 @@ def get_bases(folder_name):
 
 
     return catbase, data_base, user, user_base
-    
+

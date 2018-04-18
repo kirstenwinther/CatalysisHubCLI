@@ -26,14 +26,14 @@ def main(folder):
                     os.remove(root + '/' + file)
                 else:
                     miss_list.append(traj)
-    
+
     if len(miss_list) > 0:
         print('Files missing')
         print(miss_list)
     else:
         print('all files there!')
-    return 
-    
+    return
+
 if __name__ == "__main__":
     from sys import argv
     folder = argv[1]
