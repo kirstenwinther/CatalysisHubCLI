@@ -61,7 +61,7 @@ publication_columns = ['pubId', 'title', 'authors', 'journal', 'year', 'doi', 't
               default=('chemicalComposition', 'Equation', 'reactionEnergy'),
               type=click.Choice(reaction_columns),
               multiple=True)
-@click.option('--n_results', default=10)
+@click.option('--n-results', '-n', default=10)
 @click.option('--queries', '-q',  default={}, multiple='True',
               help="Make a selection on one of the columns: {0}\n Examples: \n -q chemicalComposition=~Pt for surfaces containing Pt \n -q reactants=CO for reactions with CO as a reactants".format(reaction_columns))
 # Keep {0} in string.format for python2.6 compatibility
@@ -85,13 +85,12 @@ def reactions(columns, n_results, queries):
     query.main(table='reactions', columns=columns, n_results=n_results, queries=query_dict)
 
 
-
 @cli.command()
 @click.option('--columns', '-c',
               default = ('title', 'authors', 'journal', 'year'),
               type=click.Choice(publication_columns),
               multiple=True)
-@click.option('--n_results', default=10)
+@click.option('--n-results', '-n', default=10)
 @click.option('--queries', '-q', default={}, multiple=True,
               help="Make a selection on one of the columns: {0}\n Examples: \n -q: \n title=~Evolution \n authors=~bajdich \n year=2017".format(publication_columns))
               # Keep {0} in string.format for python2.6 compatibility
@@ -113,7 +112,6 @@ def publications(columns, n_results, queries):
                 # Keep {0} in string.format for python2.6 compatibility
 
     query.main(table='publications', columns=columns, n_results=n_results, queries=query_dict)
-
 
 
 @cli.command()
@@ -251,7 +249,7 @@ def make_folders(create_template, template, custom_base, diagnose):
 
 @cli.command()
 @click.argument('user')
-def psql_server_connect():
+def connect(user):
     """Direct connection to PostreSQL server."""
     import psql_server_connect
     psql_server_connect.main(user)
