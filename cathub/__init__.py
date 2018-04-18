@@ -244,10 +244,11 @@ def make_folders(create_template, template, custom_base, diagnose):
 
 
 @cli.command()
+@click.argument('user')
 def psql_server_connect():
-    """Test connection to PostreSQL server."""
+    """Direct connection to PostreSQL server."""
     import psql_server_connect
-
+    psql_server_connect.main(user)
 
 @cli.command()
 @click.argument('user')
