@@ -19,19 +19,13 @@ or with any of its sub-commands, like so
 ## Examples
 
 
-To create an .json input file
+To create an .json input file for a folder structure
 
     cathub make_folders_template project1.json --create-template
 
-To create a folder structures from a .json input file
+To create a folder structure from a .json input file
 
     cathub make_folders_template project1.json
-
-Querying the Catalysis Hub database:
-
-    cathub reactions -q reactants=CO -q chemicalComposition=~Pt
-
-    cathub publications -q title=~Evolution -q year=2017
 
 Reading folders into sqlite3 db file:
 
@@ -40,3 +34,9 @@ Reading folders into sqlite3 db file:
 Sending the data to the Catalysis Hub server:
 
     cathub db2server <dbfile>
+
+Querying the Catalysis Hub database:
+
+    cathub reactions -q reactants=CO -q chemicalComposition=~Pt
+
+    cathub publications -q title=~Evolution -q year=2017
