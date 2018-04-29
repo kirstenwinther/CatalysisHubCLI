@@ -37,7 +37,7 @@ def graphql_query(table='reactions',
 
     statement = '{'
     statement += '{}(first: {}'.format(table, n_results)
-    for key, value in queries.iteritems():
+    for key, value in queries.items():
         if isinstance(value, str):
             statement += ', {}: "{}"'.format(key, value)
         elif isinstance(value, bool):
