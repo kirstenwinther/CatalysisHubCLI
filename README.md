@@ -4,6 +4,7 @@
 Install with pip using
 
     pip install --user --upgrade git+https://github.com/kirstenwinther/CatalysisHubCLI.git
+    pip install --user python-Levenshtein
 
 
 ## Usage
