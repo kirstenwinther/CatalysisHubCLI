@@ -175,10 +175,10 @@ class CathubSQLite:
 
     def check_ase_ids(self, values, ase_ids):
         ase_values = ase_ids.values()
-        assert len(set(ase_values)) == len(ase_values), 'Dublicate ASE ids!'
+        assert len(set(ase_values)) == len(ase_values), 'Duplicate ASE ids!'
 
-        reaction_species = set(values['reactants'].keys() +
-                               values['products'].keys())
+        reaction_species = set(list(values['reactants'].keys()) +
+                               list(values['products'].keys()))
 
         n_split = 0
         for spec in ase_ids.keys():
