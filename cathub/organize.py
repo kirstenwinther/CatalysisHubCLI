@@ -67,7 +67,10 @@ def symbols(atoms):
 
 
 def read_ase(structures, dirname, names):
-    print(f"Dirname {dirname}: Names {names}")
+    print("Dirname {dirname}: Names {names}".format(
+        dirname=dirname,
+        names=names,
+    ))
 
 
 def collect_structures(foldername, options):
@@ -76,7 +79,6 @@ def collect_structures(foldername, options):
         print(foldername)
     for i, filename in enumerate(Path(foldername).glob('**/*')):
         posix_filename = str(filename.as_posix())
-        print(f"{posix_filename} TYPE {type(posix_filename)}")
         if options.verbose:
             print(i, posix_filename)
         if posix_filename.endswith('publication.txt'):
@@ -96,7 +98,10 @@ def collect_structures(foldername, options):
                     structures.append(structure)
                     print(structure)
                 except IndexError:
-                    print(f"Warning: File {posix_filename} looks incomplete")
+                    print("Warning: File {posix_filename} looks incomplete"
+                          .format(
+                              posix_filename=posix_filename,
+                          ))
                 # except ase.io.formats.UnknownFileTypeError:
                     # print(f"Warning: ASE could not figure out
                     # {posix_filename}")
@@ -425,7 +430,7 @@ def create_folders(options, structures, root=''):
                 str(Path(root).joinpath(key + '.traj')),
                 structures[key],
                 format='traj',
-                )
+            )
 
 
 def main(options):
