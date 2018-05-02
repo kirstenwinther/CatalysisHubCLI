@@ -4,11 +4,6 @@
 Install with pip using
 
     pip install --user --upgrade git+https://github.com/kirstenwinther/CatalysisHubCLI.git
-    pip install python-Levenshtein 
-
-And when using Python 2.7
-
-    pip install --user pathlib2
 
 
 ## Usage
