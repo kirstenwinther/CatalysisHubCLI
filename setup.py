@@ -2,7 +2,8 @@ from setuptools import setup
 
 setup(name='cathub',
       version='0.0.1',
-      packages=['cathub'],
+      packages=['cathub',
+                'cathub.ase_tools'],
       install_requires=[
           'Click',
           'six',
