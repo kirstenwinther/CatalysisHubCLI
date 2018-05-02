@@ -102,11 +102,11 @@ def collect_structures(foldername, options):
                           .format(
                               posix_filename=posix_filename,
                           ))
-                # except ase.io.formats.UnknownFileTypeError:
-                    # print(f"Warning: ASE could not figure out
-                    # {posix_filename}")
                 except OSError as e:
-                    print(f"Error with {posix_filename}: {e}")
+                    print("Error with {posix_filename}: {e}".format(
+                        posix_filename=posix_filename,
+                        e=e,
+                        ))
 
     return structures
 
@@ -153,7 +153,10 @@ def fuzzy_match(structures, options):
 
         density = len(structure) / structure.get_volume()
         if options.verbose:
-            print(f"  {density:10.3f} {structure.info['filename']}")
+            print("  {density:10.3f} {filename}".format(
+                density=density,
+                filename=structure.info['filename'],
+                ))
         if density < options.max_density_gas:
             structure.info['state'] = 'molecule'
             molecules.append(structure)
@@ -196,12 +199,14 @@ def fuzzy_match(structures, options):
         )
     )
     if options.verbose:
-        print(f"\n\nCANDIDATES {gas_phase_candidates}")
+        print("\n\nCANDIDATES {gas_phase_candidates}".format(
+            gas_phase_candidates=gas_phase_candidates,
+            ))
 
     volume_groups = {}
     tolerance = 1e-5
     if options.verbose:
-        print(f"\n\nGROUP BY VOLUME\n\n")
+        print("\n\nGROUP BY VOLUME\n\n")
     for surface in sorted(surfaces,
                           key=lambda x: x.get_volume(),):
         formula = symbols(surface)
@@ -221,7 +226,9 @@ def fuzzy_match(structures, options):
 
     for volume in volume_groups:
         if options.verbose:
-            print(f"\nInspect volume {volume}\n")
+            print("\nInspect volume {volume}\n".format(
+                volume=volume,
+                ))
         surfaces = volume_groups[volume]
         N = len(surfaces)
         if N > 1:
