@@ -38,9 +38,9 @@ init_commands = [
     dft_code text,
     dft_functional text,
     username text,
-    pub_id text REFERENCES publication (pub_id) ON DELETE CASCADE,
-    UNIQUE (chemical_composition, facet, sites, coverages, reactants, products, pub_id)
+    pub_id text REFERENCES publication (pub_id) ON DELETE CASCADE
     );""",
+    #     UNIQUE (chemical_composition, facet, sites, coverages, reactants, products, pub_id)
 
     """CREATE TABLE reaction_system (
     name text,
@@ -107,7 +107,7 @@ class CathubPostgreSQL:
         if user == 'catroot':
             self.schema = 'public'
         else:
-            self.schema = user
+            self.schema = 'public'#user
         self.user = user
         self.server = 'catalysishub.c8gwuc8jwb7l.us-west-2.rds.amazonaws.com'
         if password is None:
@@ -175,8 +175,6 @@ class CathubPostgreSQL:
         cur.execute('GRANT USAGE ON SCHEMA public TO {0};'.format(user))
         cur.execute('GRANT SELECT ON ALL TABLES IN SCHEMA public TO {0};'.format(user))
         cur.execute('ALTER ROLE {0} SET search_path TO {1};'.format(user, user))
-        with open('fireworks.txt', 'w') as f:
-            f.write(password)
 
         con.commit()
         con.close()
@@ -355,39 +353,43 @@ class CathubPostgreSQL:
                  write_publication=True, write_reaction=True,
                  write_reaction_system=True, block_size=1000,
                  start_block=0):
+
         con = self.connection or self._connect()
         self._initialize(con)
         cur = con.cursor()
 
         import os
+        import time
         import ase.db
         server_name = "postgres://{0}:{1}@{2}:5432/catalysishub".format(self.user, self.password, self.server)
-        nkvp = 0
         nrows = 0
         if write_ase:
+            print('Transfering atomic structures')
             db = ase.db.connect(filename_sqlite)
             n_structures = db.count()
             n_blocks = int(n_structures / block_size) + 1
+            t_av = 0
             for block_id in range(start_block, n_blocks):
+                i = block_id - start_block
+                t1 = time.time()
                 b0 = block_id * block_size + 1
                 b1 = (block_id + 1) * block_size + 1
                 if block_id + 1 == n_blocks:
                     b1 = n_structures + 1
-                #rows = [db._get_row(i) for i in range(b0, b1]
-                #db2 = ase.db.connect(server_name, type='postgresql')
-                #for lala in [0]:
-                with ase.db.connect(server_name, type='postgresql') as db2:
-                    for i in range(b0, b1):
-                        row = db.get(i)
-                        kvp = row.get('key_value_pairs', {})
-                        nkvp -= len(kvp)
-                        # kvp.update(add_key_value_pairs)
-                        nkvp += len(kvp)
-                        db2.write(row, data=row.get('data'), **kvp)
-                        nrows += 1
 
-                print('Finnished Block {0}:'.format(block_id))
-                print('  Completed transfer of {0} atomic structures.'.format(nrows))
+                rows = list(db.select('{}<id<{}'.format(b0 - 1, b1)))
+
+                with ase.db.connect(server_name, type='postgresql') as db2:
+                    db2.write(rows)
+
+                nrows += len(rows)
+                t2 = time.time()
+                dt = t2 - t1
+                t_av = (t_av * i + dt) / (i + 1)
+
+                print('  Finnished Block {0} / {1} in {2} sec'.format(block_id, n_blocks, dt))
+                print('    Completed transfer of {0} atomic structures.'.format(nrows))
+                print('    Estimated time left: {0} sec'.format(t_av * (n_blocks - block_id)))
 
         from cathub.cathubsqlite import CathubSQLite
         db = CathubSQLite(filename_sqlite)
