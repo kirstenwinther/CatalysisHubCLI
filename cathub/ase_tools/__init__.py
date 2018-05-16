@@ -5,6 +5,8 @@ from ase import *
 from sys import argv
 from ase.io import read, write
 
+from cathub.ase_tools import gas_phase_references
+
 def read_ase(filename):
     import six
     if isinstance(filename, six.string_types):
@@ -404,22 +406,31 @@ def check_in_ase(filename, ase_db, energy=None):
         return None, None
 
 
+def _normalize_key_value_pairs_inplace(data):
+    for key in data:
+        if type(data[key]) is np.int64:
+            data[key] = int(data[key])
+
+
 def write_ase(filename, db_file, user=None, data=None, **key_value_pairs):
     """ Connect to ASE db"""
     atoms = read_ase(filename)
     atoms = tag_atoms(atoms)
     db_ase = ase.db.connect(db_file)
     #db_ase.user = user
+    _normalize_key_value_pairs_inplace(key_value_pairs)
     id = db_ase.write(atoms, data=data, **key_value_pairs)
     print('writing atoms to ASE db row id = {}'.format(id))
     unique_id = db_ase.get(id)['unique_id']
     return unique_id
 
-def update_ase(db_file, id,  **key_value_pairs):
+def update_ase(db_file, identity,  **key_value_pairs):
     """ Connect to ASE db"""
     db_ase = ase.db.connect(db_file)
-    count = db_ase.update(id, **key_value_pairs)
-    print('Updating {} key value pairs in ASE db row id = {}'.format(count, id))
+
+    _normalize_key_value_pairs_inplace(key_value_pairs)
+    count = db_ase.update(identity, **key_value_pairs)
+    print('Updating {0} key value pairs in ASE db row id = {1}'.format(count, id))
     return
 
 def get_reaction_from_folder(folder_name):
