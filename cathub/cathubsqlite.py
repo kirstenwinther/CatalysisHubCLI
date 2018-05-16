@@ -114,19 +114,6 @@ class CathubSQLite:
 
         self.initialized = True
 
-    def update_names(self, con):
-        name_changes = [
-            'ALTER TABLE catapp rename to reactions;',
-            'ALTER TABLE publications rename to publication',
-            'ALTER TABLE publication_structures rename to publication_system',
-            'ALTER TABLE catapp_structures rename to reaction_system']
-
-        for statement in name_changes:
-            con.execute(statement)
-        con.commit()
-        return
-
-
     def read(self, id, table='reaction'):
         con = self.connection or self._connect()
         self._initialize(con)
@@ -140,7 +127,6 @@ class CathubSQLite:
             row = row.insert(5, 'None')
 
         return row
-
 
     def write_publication(self, values):
         con = self.connection or self._connect()
@@ -221,9 +207,7 @@ class CathubSQLite:
                   values['dft_code'],
                   values['dft_functional'],
                   values['username'],
-                  values['pub_id']#,
-                  #values['doi'],
-                  #int(values['year']),
+                  values['pub_id']
                   )
 
         q = ', '.join('?' * len(values))
@@ -287,7 +271,6 @@ class CathubSQLite:
             con.commit()
             con.close()
         return id
-
 
     def get_last_id(self, cur):
         cur.execute('SELECT seq FROM sqlite_sequence WHERE name="reaction"')

@@ -40,7 +40,6 @@ init_commands = [
     username text,
     pub_id text REFERENCES publication (pub_id) ON DELETE CASCADE
     );""",
-    #     UNIQUE (chemical_composition, facet, sites, coverages, reactants, products, pub_id)
 
     """CREATE TABLE reaction_system (
     name text,
