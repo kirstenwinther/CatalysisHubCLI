@@ -163,8 +163,8 @@ class FolderReader:
                         pass
                # publication_keys.update({'publication_' + key: value})
 
-        except:
-            print('ERROR: insufficient publication info')
+        except Exception as e:
+            print('ERROR: insufficient publication info {e}'.format(**locals()))
             self.doi = None
             pub_data = {'title': self.title,
                         'authors': self.authors,
@@ -407,7 +407,7 @@ class FolderReader:
                                 'state': 'star'})
         ase_id = None
         id, ase_id = check_in_ase(traj_empty, self.cathub_db)
-        for key, mollist in self.reaction_atoms.iteritems():
+        for key, mollist in self.reaction_atoms.items():
             if '' in mollist:
                 n = mollist.index('')
                 self.traj_files[key][n] = traj_empty

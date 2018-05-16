@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 import psycopg2
 import os
+import sys
+try:
+    from builtins import str as text
+except:
+    text = str
 
 init_commands = [
     """CREATE TABLE publication (
@@ -99,7 +104,7 @@ tsvector_update = [
 
 
 class CathubPostgreSQL:
-    def __init__(self, user='catroot', password=None):
+    def __init__(self, user='catroot', password=None, stdin=sys.stdin, stdout=sys.stdout):
         self.initialized = False
         self.connection = None
         self.id = None
@@ -111,7 +116,9 @@ class CathubPostgreSQL:
         self.server = 'catalysishub.c8gwuc8jwb7l.us-west-2.rds.amazonaws.com'
         if password is None:
             password = os.environ['DB_PASSWORD']
-        self.password=password
+        self.password = password
+        self.stdin = stdin
+        self.stdout = stdout
 
     def _connect(self):
         import os
@@ -141,8 +148,12 @@ class CathubPostgreSQL:
             return
         cur = con.cursor()
 
-        set_schema = 'SET search_path TO {0};'.format(self.schema)
+        self.stdout.write("_initialize start\n")
+
+        set_schema = 'SET search_path = {0};'.format(self.schema)
         cur.execute(set_schema)
+
+        self.stdout.write("_initialize set schema to {self.schema}\n".format(**locals()))
 
         from ase.db.postgresql import PostgreSQLDatabase
         PostgreSQLDatabase()._initialize(con)
@@ -150,13 +161,13 @@ class CathubPostgreSQL:
         cur.execute("""SELECT to_regclass('publication');""")
         if cur.fetchone()[0] == None:  # publication doesn't exist
             for init_command in init_commands:
-                print(init_command)
+                self.stdout.write(init_command + '\n')
                 cur.execute(init_command)
             for statement in index_statements:
-                print(statement)
+                self.stdout.write(statement + '\n')
                 cur.execute(statement)
             for statement in tsvector_statements:
-                print(statement)
+                self.stdout(statement + '\n')
                 cur.execute(statement)
             con.commit()
         self.initialized = True
@@ -187,7 +198,7 @@ class CathubPostgreSQL:
         con.commit()
         con.close()
 
-        print('CREATED USER {0} WITH PASSWORD {1}'.format(user, password))
+        self.stdout.write('CREATED USER {0} WITH PASSWORD {1}\n'.format(user, password))
 
         return self
 
@@ -307,8 +318,8 @@ class CathubPostgreSQL:
         key_str = ', '.join(pub_dict.keys())
         value_str = "'{0}'".format(values[0])
         for v in values[1:]:
-            if isinstance(v, unicode):
-                v = v.encode('ascii','ignore')
+            if isinstance(v, text):
+                v = v.encode('utf8','ignore')
             if v is None or v == '':
                 value_str += ", {0}".format('NULL')
             elif isinstance(v, str):
@@ -322,7 +333,7 @@ class CathubPostgreSQL:
         """UPDATE publication SET ({0}) = ({1}) WHERE pub_id='{2}';"""\
         .format(key_str, value_str, pub_id)
 
-        print(update_command)
+        self.stdout.write(update_command + '\n')
         cur.execute(update_command)
 
         if self.connection is None:
@@ -353,14 +364,28 @@ class CathubPostgreSQL:
                  write_reaction_system=True, block_size=1000,
                  start_block=0):
 
+        self.stdout.write('Starting transfer\n')
         con = self.connection or self._connect()
         self._initialize(con)
+        self.stdout.write('Finished initialization\n')
         cur = con.cursor()
+        self.stdout.write('Got a cursor\n')
+
+        set_schema = 'SET search_path = {0};'.format(self.schema)
+        cur.execute(set_schema)
+
 
         import os
         import time
+        self.stdout.write('Imported os\n')
+
         import ase.db
+        self.stdout.write('Imported ase.db\n')
+        self.stdout.write('Building server_name\n')
         server_name = "postgres://{0}:{1}@{2}:5432/catalysishub".format(self.user, self.password, self.server)
+
+        self.stdout.write('Connecting to {server_name}\n'.format(**locals()))
+
         nrows = 0
         if write_ase:
             print('Transfering atomic structures')
@@ -373,12 +398,14 @@ class CathubPostgreSQL:
                 t1 = time.time()
                 b0 = block_id * block_size + 1
                 b1 = (block_id + 1) * block_size + 1
+                self.stdout.write(str(block_id) +  ' ' + 'from ' + str(b0) + ' to ' + str(b1) + '\n')
                 if block_id + 1 == n_blocks:
                     b1 = n_structures + 1
 
                 rows = list(db.select('{}<id<{}'.format(b0 - 1, b1)))
 
                 with ase.db.connect(server_name, type='postgresql') as db2:
+
                     db2.write(rows)
 
                 nrows += len(rows)
@@ -386,9 +413,9 @@ class CathubPostgreSQL:
                 dt = t2 - t1
                 t_av = (t_av * i + dt) / (i + 1)
 
-                print('  Finnished Block {0} / {1} in {2} sec'.format(block_id, n_blocks, dt))
-                print('    Completed transfer of {0} atomic structures.'.format(nrows))
-                print('    Estimated time left: {0} sec'.format(t_av * (n_blocks - block_id)))
+                self.stdout.write('  Finnished Block {0} / {1} in {2} sec'.format(block_id, n_blocks, dt))
+                self.stdout.write('    Completed transfer of {0} atomic structures.'.format(nrows))
+                self.stdout.write('    Estimated time left: {0} sec'.format(t_av * (n_blocks - block_id)))
 
         from cathub.cathubsqlite import CathubSQLite
         db = CathubSQLite(filename_sqlite)
@@ -419,6 +446,11 @@ class CathubPostgreSQL:
                 values= row[:]
                 key_str, value_str = get_key_value_str(values,
                                                        table='publication_system')
+
+                set_schema = 'SET search_path = {0};'.format(self.schema)
+                cur.execute(set_schema)
+                print("[SET SCHEMA] {set_schema}".format(**locals()))
+
                 insert_command = 'INSERT INTO publication_system ({0}) VALUES ({1}) ON CONFLICT DO NOTHING;'.format(key_str, value_str)
 
                 cur.execute(insert_command)
@@ -443,18 +475,18 @@ class CathubPostgreSQL:
 
                 if id is not None:
                     id = self.update(id, values)
-                    print('Updated reaction db with row id = {}'.format(id))
+                    self.stdout.write('Updated reaction db with row id = {}\n'.format(id))
                     update_rs = True
                 else:
                     Ncat += 1
                     id = self.write(values)
-                    print('Written to reaction db row id = {0}'.format(id))
+                    self.stdout.write('Written to reaction db row id = {0}\n'.format(id))
 
                 cur_lite.execute(select_ase.format(id_lite))
                 rows = cur_lite.fetchall()
                 if write_reaction_system:
                     if update_rs:
-                        cur.execute('Delete from reaction_system where id={0}'.format(id))
+                        cur.execute('Delete from reaction_system where reaction_id={0}'.format(id))
                     for row in rows:
                         Ncatstruc += 1
                         values = list(row)
@@ -466,8 +498,13 @@ class CathubPostgreSQL:
                         key_str, value_str = get_key_value_str(values,
                                                                table='reaction_system')
 
+                        set_schema = 'SET search_path = {0};'.format(self.schema)
+                        cur.execute(set_schema)
+                        print("[SET SCHEMA] {set_schema}".format(**locals()))
+
                         insert_command = 'INSERT INTO reaction_system ({0}) VALUES ({1}) ON CONFLICT DO NOTHING;'.format(key_str, value_str)
 
+                        print("[INSERT COMMAND] {insert_command}".format(**locals()))
                         cur.execute(insert_command)
 
                 con.commit() # Commit reaction_system for each row
@@ -479,12 +516,12 @@ class CathubPostgreSQL:
             con.commit()
             con.close()
 
-        print('Inserted into:')
-        print('  systems: {0}'.format(nrows))
-        print('  publication: {0}'.format(Npub))
-        print('  publication_system: {0}'.format(Npubstruc))
-        print('  reaction: {0}'.format(Ncat))
-        print('  reaction_system: {0}'.format(Ncatstruc))
+        self.stdout.write('Inserted into:\n')
+        self.stdout.write('  systems: {0}\n'.format(nrows))
+        self.stdout.write('  publication: {0}\n'.format(Npub))
+        self.stdout.write('  publication_system: {0}\n'.format(Npubstruc))
+        self.stdout.write('  reaction: {0}\n'.format(Ncat))
+        self.stdout.write('  reaction_system: {0}\n'.format(Ncatstruc))
             
     def check(self, pub_id, chemical_composition, reactants, products,
               reaction_energy=None, strict=True):
@@ -549,13 +586,23 @@ def get_key_value_str(values, table='reaction'):
         start_index = 0
     value_str = "'{0}'".format(values[start_index])
     for v in values[start_index+1:]:
-        if isinstance(v, unicode):
-            v = v.encode('ascii','ignore')
+        print("\n\n\nDIR TYPE {v}".format(**locals()))
+        print(dir(v))
+        print(type(v))
+        #if isinstance(v, text):
+            #v = v.encode('utf8','ignore')
+            #print("ISINSTANCE TEXT {v}".format(**locals()))
+        #elif hasattr(v, 'encode'):
+            #v = v.encode('utf8','ignore')
+            #print("HASATTR ENCODE {v}".format(**locals()))
+
+
         if v is None or v == '':
             value_str += ", {0}".format('NULL')
         elif isinstance(v, str):
             value_str += ", '{0}'".format(v)
         else:
             value_str += ", {0}".format(v)
+        print(value_str)
 
     return key_str[table], value_str

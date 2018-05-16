@@ -14,7 +14,7 @@ except:  # SUNCAT
     catbase = '/nfs/slac/g/suncatfs/data_catapp/winther/scripts/catapp'
 
 path.append(catbase)
-from ase_tools import check_traj
+from cathub.ase_tools import check_traj
 
 
 def main(base):

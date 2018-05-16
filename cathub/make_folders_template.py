@@ -14,7 +14,7 @@ except:  # SUNCAT
     catbase = '/nfs/slac/g/suncatfs/data_catapp'
 
 sys.path.append(catbase)
-from tools import extract_atoms, check_reaction
+from cathub.tools import extract_atoms, check_reaction
 
 username = os.environ['USER']
 
@@ -135,7 +135,7 @@ def main(
                         }
 
     pub_txt = publication_base + 'publication.txt'
-    json.dump(publication_dict, open(pub_txt, 'wb'))
+    json.dump(publication_dict, open(pub_txt, 'w'))
 
     if not len(energy_corrections.keys()) == 0:
         energy_txt = publication_base + 'energy_corrections.txt'
@@ -153,7 +153,7 @@ def main(
 
     gas_names = []
     ads_names = []
-    from ase_tools import get_state, clear_state, clear_prefactor
+    from cathub.ase_tools import get_state, clear_state, clear_prefactor
     for i in range(len(reactions)):
         rnames = [r.split('@')[0] for r in reactions[i]['reactants'] +
                   reactions[i]['products']]

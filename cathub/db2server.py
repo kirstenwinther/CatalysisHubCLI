@@ -1,4 +1,4 @@
-from sys import argv
+from sys import argv, stdout, stdin
 from cathub.postgresql import CathubPostgreSQL
 
 def main(dbfile, start_id=1, write_reaction=True, write_ase=True,
@@ -8,7 +8,10 @@ def main(dbfile, start_id=1, write_reaction=True, write_ase=True,
          db_password=None,
          ):
 
+    stdout.write('Starting db2server\n')
+
     db = CathubPostgreSQL(user=db_user, password=db_password)
+    stdout.write('Established SQL Server connection.\n')
     db.transfer(dbfile, start_id=start_id, write_reaction=write_reaction,
                 write_ase=write_ase,
                 write_publication=write_publication,
